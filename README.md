@@ -16,26 +16,24 @@
 
 ## 快速开始
 
-```bash
-# 1. 获取 Release 单文件，解压到任意目录（如 C:\Tools\NewLife.OllamaHub\）
-# 2. 复制配置模板并填入你的 Key
-copy settings.sample.json settings.json
-# 编辑 settings.json，至少填好一个 provider 的 apiKey
+> 全程图形化 / 右键操作，无需记忆命令行参数。
 
-# 3. 以管理员身份运行 install.bat（内部执行 -i 安装并启动服务）
-install.bat
+1. **下载并解压**：从 [GitHub Releases](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases) 下载单文件压缩包，在资源管理器中**右键解压**到任意目录（如 `C:\Tools\NewLife.OllamaHub\`）。
+2. **右键安装为服务**：进入解压目录，右键 `NewLife.OllamaHub.exe` → **以管理员身份运行**。弹出的菜单会自动识别状态，按 `2` 安装服务、按 `3` 启动服务即可（菜单项会随服务状态自动变化）。
+   ![未安装时的菜单](docs/assets/install-menu-initial.png)
+3. **可视化配置模型与 Key**：仍在刚才的菜单里，按 `p` 一键生成 11 家供应商预设，按 `k` 逐个填入 API Key（或按 `c` 走配置向导），全程图形化。配置写入后若服务已在运行，会通过**配置热重载**自动生效，无需重启。
+   > 菜单快捷键与完整截图见[安装为 Windows 服务](docs/install-as-service.md)。
+4. **在 Visual Studio 中接入**：打开 GitHub Copilot Chat → Manage models → 选 Ollama → 端点填 `http://localhost:11434`。详见[VS 接入指南](docs/vs-setup.md)。
 
-# 4. Visual Studio 中配置 Copilot 使用 OllamaHub（详见 docs/vs-setup.md）
-#    GitHub Copilot Chat → Manage models → Ollama → http://localhost:11434
-```
+（可选）若想手动准备配置：在资源管理器中复制 `settings.sample.json` 并重命名为 `settings.json`，双击用记事本打开填入 `apiKey` 即可，效果同上。
 
-开发/调试时可用控制台模式前台运行：
-
-```bash
-dotnet run --project src/NewLife.OllamaHub --serve
-# 或发布后：
-NewLife.OllamaHub.exe --serve
-```
+> 开发 / 调试源码时可用控制台模式前台运行（普通用户即可，无需管理员）：
+>
+> ```bash
+> dotnet run --project src/NewLife.OllamaHub --serve
+> # 或发布后：
+> NewLife.OllamaHub.exe --serve
+> ```
 
 ## 命令一览
 
