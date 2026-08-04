@@ -129,7 +129,7 @@ Hub 内置一个零依赖的只读管理面板，方便查看运行状态与用�
       "baseUrl": "https://api.deepseek.com/v1", "hasKey": true }
   ],
   "models": [
-    { "id": "deepseek-chat", "displayName": "DeepSeek Chat", "family": "deepseek",
+    { "id": "deepseek-v4-flash", "displayName": "DeepSeek V4 Flash", "family": "deepseek",
       "provider": "deepseek", "tools": true, "vision": false, "thinking": false,
       "requests": 0, "errors": 0, "promptTokens": 0, "completionTokens": 0, "lastError": "" }
   ]

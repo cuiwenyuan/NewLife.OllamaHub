@@ -76,4 +76,4 @@ curl http://127.0.0.1:11434/api/tags
 
 ## 下一步：在 Visual Studio 中使用
 
-服务运行后，打开 Visual Studio 的 GitHub Copilot Chat，按 [vs-setup.md](vs-setup.md) 的步骤把 `http://localhost:11434` 添加为 Ollama 端点，即可使用 `deepseek-chat`、`deepseek-reasoner` 等模型。
+服务运行后，打开 Visual Studio 的 GitHub Copilot Chat，按 [vs-setup.md](vs-setup.md) 的步骤把 `http://localhost:11434` 添加为 Ollama 端点，即可使用 `deepseek-v4-flash`、`deepseek-v4-pro` 等模型（具体可用模型见 Admin 面板 `/api/tags` 或 [providers.md](providers.md)）。

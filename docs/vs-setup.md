@@ -37,7 +37,7 @@
 
 ### 4. 勾选要使用的模型
 
-OllamaHub 会把 `settings.json` 里配置的模型以 Ollama 格式暴露出来。勾选你需要的模型（如 `deepseek-chat`、`deepseek-reasoner`），然后点击 **Save**。
+OllamaHub 会把 `settings.json` 里配置的模型以 Ollama 格式暴露出来。勾选你需要的模型（如 `deepseek-v4-flash`、`deepseek-v4-pro`），然后点击 **Save**。
 
 ![勾选模型](assets/vs-copilot-select-models.png)
 
