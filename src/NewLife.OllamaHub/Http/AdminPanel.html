@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NewLife.OllamaHub 管理面板</title>
+<style>
+  :root { --bg:#f6f8fa; --card:#ffffff; --border:#e3e8ee; --text:#1f2328; --muted:#6b7280; --accent:#2563eb; --ok:#16a34a; --err:#dc2626; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--accent); color:#fff; padding:18px 24px; }
+  header h1 { margin:0; font-size:18px; }
+  header small { opacity:.85; }
+  main { max-width:980px; margin:20px auto; padding:0 16px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:12px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .card .k { font-size:12px; color:var(--muted); }
+  .card .v { font-size:22px; font-weight:600; margin-top:4px; }
+  .listen-card { margin-bottom:16px; }
+  .listen-card .v { font-size:18px; font-weight:600; word-break:break-all; line-height:1.5; }
+  section { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:16px; }
+  section h2 { margin:0 0 12px; font-size:15px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }
+  th { color:var(--muted); font-weight:600; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px; background:#eef2ff; color:var(--accent); }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  .errtext { color:var(--err); font-size:12px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NewLife.OllamaHub</h1>
+  <small>Ollama 兼容代理 · 本地大模型接入 GitHub Copilot</small>
+</header>
+<main>
+  <div class="cards" id="cards"></div>
+  <div class="card listen-card" id="listen"></div>
+
+  <section>
+    <h2>供应商</h2>
+    <table id="providers"><thead><tr><th>Id</th><th>名称</th><th>模式</th><th>基址</th><th>密钥</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section>
+    <h2>模型与用量</h2>
+    <table id="models"><thead><tr><th>模型</th><th>供应商</th><th>能力</th><th>请求</th><th>错误</th><th>Prompt</th><th>生成</th><th>末次错误</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <button onclick="load()">刷新</button>
+</main>
+<script>
+async function load() {
+  let s;
+  try { s = await (await fetch('/api/status')).json(); }
+  catch (e) { document.getElementById('cards').innerHTML = '<div class="card"><div class="err">无法获取 /api/status：'+e+'</div></div>'; document.getElementById('listen').innerHTML=''; return; }
+
+  const cards = [
+    ['版本', s.version], ['运行时长', s.uptimeSeconds + ' s'],
+    ['聚合本机Ollama', s.aggregateLocalOllama ? '开' : '关'],
+    ['总请求', s.totalRequests], ['总错误', s.totalErrors],
+  ];
+  document.getElementById('cards').innerHTML = cards.map(c =>
+    '<div class="card"><div class="k">'+c[0]+'</div><div class="v">'+c[1]+'</div></div>').join('');
+  document.getElementById('listen').innerHTML =
+    '<div class="k">监听地址</div><div class="v">'+(s.listenUrl||'-')+'</div>';
+
+  document.querySelector('#providers tbody').innerHTML = s.providers.map(p =>
+    '<tr><td>'+p.id+'</td><td>'+(p.name||'')+'</td><td><span class="tag">'+p.apiMode+'</span></td><td>'+(p.baseUrl||'')+'</td><td>'+(p.hasKey?'<span class="ok">已配置</span>':'<span class="err">缺失</span>')+'</td></tr>').join('');
+
+  document.querySelector('#models tbody').innerHTML = s.models.map(m => {
+    const caps = [m.tools?'tools':'', m.vision?'vision':'', m.thinking?'thinking':''].filter(Boolean).map(c=>'<span class="tag">'+c+'</span>').join(' ');
+    return '<tr><td>'+m.id+'</td><td>'+(m.provider||'')+'</td><td>'+caps+'</td><td>'+m.requests+'</td><td>'+(m.errors?('<span class="err">'+m.errors+'</span>'):'0')+'</td><td>'+m.promptTokens+'</td><td>'+m.completionTokens+'</td><td class="errtext">'+(m.lastError||'')+'</td></tr>';
+  }).join('');
+}
+load();
+setInterval(load, 10000);
+</script>
+</body>
+</html>

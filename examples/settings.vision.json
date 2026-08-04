@@ -1,0 +1,17 @@
+{
+  "host": "127.0.0.1",
+  "port": 11434,
+  "logging": { "level": "Info", "retentionDays": 7 },
+  "providers": [
+    {
+      "id": "qwen",
+      "name": "通义千问",
+      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "apiMode": "openai",
+      "apiKey": ""
+    }
+  ],
+  "models": [
+    { "id": "qwen-vl-max", "ownedBy": "qwen", "displayName": "通义千问 VL Max（视觉）", "family": "qwen", "provider": "qwen", "contextLength": 32000, "maxTokens": 4096, "tools": true, "vision": true }
+  ]
+}

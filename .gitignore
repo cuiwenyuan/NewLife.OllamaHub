@@ -1,0 +1,30 @@
+# .NET / Visual Studio / Rider
+bin/
+obj/
+*.user
+.vs/
+.idea/
+*.suo
+
+# NewLife 运行日志
+Log/
+
+# 本地配置（可能含密钥），切勿入库；请用 settings.sample.json 作模板
+settings.json
+appsettings*.json
+
+# 发布产物
+publish/
+Dist/
+DistZip/
+# 本地发布/调试目录（含已编译 exe 与本地 settings.json，切勿入库）
+publish-test/
+publish-test-*/
+publish-test-new/
+
+# 本地规划文档（含内部开发进度，不入库）
+PLAN.md
+
+# OS / 编辑器
+Thumbs.db
+.DS_Store

@@ -1,0 +1,19 @@
+{
+  "host": "127.0.0.1",
+  "port": 11434,
+  "logging": { "level": "Info", "retentionDays": 7 },
+  "providers": [
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "baseUrl": "https://api.deepseek.com",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    }
+  ],
+  "models": [
+    { "id": "deepseek-v4-flash", "ownedBy": "deepseek", "displayName": "DeepSeek V4 Flash", "family": "deepseek", "provider": "deepseek", "contextLength": 1000000, "maxTokens": 384000, "tools": true, "vision": false, "temperature": 0 },
+    { "id": "deepseek-v4-pro", "ownedBy": "deepseek", "displayName": "DeepSeek V4 Pro", "family": "deepseek", "provider": "deepseek", "contextLength": 1000000, "maxTokens": 384000, "tools": true, "thinking": true, "includeReasoningInRequest": false, "dropParams": ["temperature", "top_p"] }
+  ]
+}

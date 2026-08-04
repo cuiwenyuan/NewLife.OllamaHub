@@ -1,0 +1,20 @@
+{
+  "host": "127.0.0.1",
+  "port": 11434,
+  "logging": { "level": "Info", "retentionDays": 7 },
+  "providers": [
+    {
+      "id": "anthropic",
+      "name": "Anthropic Claude",
+      "baseUrl": "https://api.anthropic.com",
+      "apiMode": "anthropic",
+      "apiKey": "",
+      "headers": { }
+    }
+  ],
+  "models": [
+    { "id": "claude-3-5-sonnet-latest", "ownedBy": "anthropic", "displayName": "Claude 3.5 Sonnet", "family": "anthropic", "provider": "anthropic", "contextLength": 200000, "maxTokens": 8192, "tools": true, "vision": true },
+    { "id": "claude-3-5-haiku-latest", "ownedBy": "anthropic", "displayName": "Claude 3.5 Haiku", "family": "anthropic", "provider": "anthropic", "contextLength": 200000, "maxTokens": 8192, "tools": true, "vision": true },
+    { "id": "claude-3-opus-latest", "ownedBy": "anthropic", "displayName": "Claude 3 Opus", "family": "anthropic", "provider": "anthropic", "contextLength": 200000, "maxTokens": 4096, "tools": true, "vision": true }
+  ]
+}

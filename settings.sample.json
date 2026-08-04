@@ -1,0 +1,106 @@
+{
+  "url": "http://127.0.0.1:11434",
+  "host": "127.0.0.1",
+  "port": 11434,
+  "logging": { "level": "Info", "retentionDays": 7 },
+  "aggregateLocalOllama": false,
+  "localOllamaBaseUrl": "http://127.0.0.1:11434",
+  "providers": [
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "baseUrl": "https://api.deepseek.com",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    },
+    {
+      "id": "qwen",
+      "name": "阿里通义千问",
+      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    },
+    {
+      "id": "kimi",
+      "name": "Moonshot Kimi",
+      "baseUrl": "https://api.moonshot.cn/v1",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    },
+    {
+      "id": "glm",
+      "name": "智谱 GLM",
+      "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    },
+    {
+      "id": "siliconflow",
+      "name": "硅基流动",
+      "baseUrl": "https://api.siliconflow.cn/v1",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    },
+    {
+      "id": "volcengine",
+      "name": "火山方舟",
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    },
+    {
+      "id": "hunyuan",
+      "name": "腾讯混元",
+      "baseUrl": "https://api.hunyuan.cloud.tencent.com/v1",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    },
+    {
+      "id": "modelscope",
+      "name": "ModelScope",
+      "baseUrl": "https://api.modelscope.cn/v1",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    }
+  ],
+  "models": [
+    { "id": "deepseek-v4-flash", "ownedBy": "deepseek", "displayName": "DeepSeek V4 Flash", "family": "deepseek", "provider": "deepseek", "contextLength": 1000000, "maxTokens": 384000, "tools": true, "vision": false, "temperature": 0 },
+    { "id": "deepseek-v4-pro", "ownedBy": "deepseek", "displayName": "DeepSeek V4 Pro", "family": "deepseek", "provider": "deepseek", "contextLength": 1000000, "maxTokens": 384000, "tools": true, "thinking": true, "includeReasoningInRequest": false, "dropParams": ["temperature", "top_p"] },
+    { "id": "qwen3.8-max", "ownedBy": "qwen", "displayName": "通义千问 Qwen3.8 Max", "family": "qwen", "provider": "qwen", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true },
+    { "id": "qwen3.7-plus", "ownedBy": "qwen", "displayName": "通义千问 Qwen3.7 Plus", "family": "qwen", "provider": "qwen", "contextLength": 128000, "maxTokens": 8192, "tools": true },
+    { "id": "qwen3.7-flash", "ownedBy": "qwen", "displayName": "通义千问 Qwen3.7 Flash", "family": "qwen", "provider": "qwen", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true },
+    { "id": "kimi-k3", "ownedBy": "kimi", "displayName": "Kimi K3", "family": "kimi", "provider": "kimi", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true, "thinking": true },
+    { "id": "kimi-k2.7-code", "ownedBy": "kimi", "displayName": "Kimi K2.7 Code", "family": "kimi", "provider": "kimi", "contextLength": 256000, "maxTokens": 8192, "tools": true, "vision": true, "thinking": true },
+    { "id": "kimi-k2.6", "ownedBy": "kimi", "displayName": "Kimi K2.6", "family": "kimi", "provider": "kimi", "contextLength": 256000, "maxTokens": 8192, "tools": true, "vision": true, "thinking": true },
+    { "id": "glm-5.2", "ownedBy": "glm", "displayName": "智谱 GLM-5.2", "family": "glm", "provider": "glm", "contextLength": 1000000, "maxTokens": 8192, "tools": true },
+    { "id": "glm-5.1", "ownedBy": "glm", "displayName": "智谱 GLM-5.1", "family": "glm", "provider": "glm", "contextLength": 200000, "maxTokens": 8192, "tools": true },
+    { "id": "glm-4.7", "ownedBy": "glm", "displayName": "智谱 GLM-4.7", "family": "glm", "provider": "glm", "contextLength": 200000, "maxTokens": 8192, "tools": true },
+    { "id": "glm-4.7-flashx", "ownedBy": "glm", "displayName": "智谱 GLM-4.7 FlashX", "family": "glm", "provider": "glm", "contextLength": 200000, "maxTokens": 8192, "tools": true },
+    { "id": "deepseek-ai/DeepSeek-V3", "ownedBy": "siliconflow", "displayName": "硅基流动 DeepSeek V3", "family": "deepseek", "provider": "siliconflow", "contextLength": 131072, "maxTokens": 8192, "tools": true },
+    { "id": "Qwen/Qwen2.5-72B-Instruct", "ownedBy": "siliconflow", "displayName": "硅基流动 Qwen2.5-72B", "family": "qwen", "provider": "siliconflow", "contextLength": 131072, "maxTokens": 8192, "tools": true },
+    { "id": "doubao-seed-2-1-pro-260628", "ownedBy": "volcengine", "displayName": "火山方舟 Doubao Seed 2.1 Pro", "family": "doubao", "provider": "volcengine", "contextLength": 256000, "maxTokens": 8192, "tools": true },
+    { "id": "doubao-seed-2-1-turbo-260628", "ownedBy": "volcengine", "displayName": "火山方舟 Doubao Seed 2.1 Turbo", "family": "doubao", "provider": "volcengine", "contextLength": 256000, "maxTokens": 8192, "tools": true },
+    { "id": "doubao-seed-2-0-code-preview-260215", "ownedBy": "volcengine", "displayName": "火山方舟 Doubao Seed 2.0 Code", "family": "doubao", "provider": "volcengine", "contextLength": 256000, "maxTokens": 8192, "tools": true },
+    { "id": "deepseek-v3-241126", "ownedBy": "volcengine", "displayName": "火山方舟 DeepSeek V3", "family": "deepseek", "provider": "volcengine", "contextLength": 131072, "maxTokens": 8192, "tools": true },
+    { "id": "hunyuan-a13b", "ownedBy": "hunyuan", "displayName": "腾讯混元 A13B", "family": "hunyuan", "provider": "hunyuan", "contextLength": 224000, "maxTokens": 8192, "tools": true, "thinking": true },
+    { "id": "hunyuan-vision-1.5-instruct", "ownedBy": "hunyuan", "displayName": "腾讯混元 Vision 1.5", "family": "hunyuan", "provider": "hunyuan", "contextLength": 24000, "maxTokens": 8192, "tools": true, "vision": true },
+    { "id": "Qwen/Qwen2.5-72B-Instruct", "ownedBy": "modelscope", "displayName": "ModelScope Qwen2.5-72B", "family": "qwen", "provider": "modelscope", "contextLength": 131072, "maxTokens": 8192, "tools": true },
+    { "id": "deepseek/deepseek-v4-flash-latest", "ownedBy": "openrouter", "displayName": "OpenRouter DeepSeek V4 Flash", "family": "deepseek", "provider": "openrouter", "contextLength": 1000000, "maxTokens": 8192, "tools": true }
+  ]
+}

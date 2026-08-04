@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- 单文件发布 + 仅依赖 NewLife 生态；InvariantGlobalization 去除系统区域依赖 -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AssemblyName>NewLife.OllamaHub</AssemblyName>
+    <RootNamespace>NewLife.OllamaHub</RootNamespace>
+    <!-- 硬约束：公共 API 必须 XML 注释（newlife-global-standards） -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 仅引用 NewLife 生态 NuGet，无任何第三方（含 Microsoft.Extensions.*） -->
+    <PackageReference Include="NewLife.Core" Version="11.18.2026.801" />
+    <PackageReference Include="NewLife.Agent" Version="10.17.2026.801" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 内嵌 Web 管理面板 HTML（随单文件 exe 打包，离线可用） -->
+    <EmbeddedResource Include="Http\AdminPanel.html" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,21 @@
+{
+  "host": "127.0.0.1",
+  "port": 11434,
+  "logging": { "level": "Info", "retentionDays": 7 },
+  "providers": [
+    {
+      "id": "siliconflow",
+      "name": "硅基流动",
+      "baseUrl": "https://api.siliconflow.cn/v1",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    }
+  ],
+  "models": [
+    { "id": "deepseek-ai/DeepSeek-V3", "ownedBy": "siliconflow", "displayName": "硅基流动 DeepSeek V3", "family": "deepseek", "provider": "siliconflow", "contextLength": 131072, "maxTokens": 8192, "tools": true },
+    { "id": "deepseek-ai/DeepSeek-R1", "ownedBy": "siliconflow", "displayName": "硅基流动 DeepSeek R1", "family": "deepseek", "provider": "siliconflow", "contextLength": 131072, "maxTokens": 65536, "tools": true, "thinking": true, "includeReasoningInRequest": false, "dropParams": ["temperature", "top_p"] },
+    { "id": "Qwen/Qwen2.5-72B-Instruct", "ownedBy": "siliconflow", "displayName": "硅基流动 Qwen2.5-72B", "family": "qwen", "provider": "siliconflow", "contextLength": 131072, "maxTokens": 8192, "tools": true },
+    { "id": "Pro/Qwen2.5-7B-Instruct", "ownedBy": "siliconflow", "displayName": "硅基流动 Qwen2.5-7B(Pro)", "family": "qwen", "provider": "siliconflow", "contextLength": 32768, "maxTokens": 4096, "tools": true }
+  ]
+}

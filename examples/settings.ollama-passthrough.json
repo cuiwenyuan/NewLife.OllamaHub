@@ -1,0 +1,29 @@
+{
+  "host": "127.0.0.1",
+  "port": 11435,
+  "logging": { "level": "Info", "retentionDays": 7 },
+  "aggregateLocalOllama": true,
+  "localOllamaBaseUrl": "http://127.0.0.1:11434",
+  "providers": [
+    {
+      "id": "local-ollama",
+      "name": "本机 Ollama",
+      "baseUrl": "http://127.0.0.1:11434",
+      "apiMode": "ollama",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "baseUrl": "https://api.deepseek.com",
+      "apiMode": "openai",
+      "apiKey": "",
+      "headers": { "Content-Type": "application/json" }
+    }
+  ],
+  "models": [
+    { "id": "deepseek-chat", "ownedBy": "deepseek", "displayName": "DeepSeek V3（云端）", "family": "deepseek", "provider": "deepseek", "contextLength": 131072, "maxTokens": 8192, "tools": true },
+    { "id": "qwen2.5:7b", "ownedBy": "local-ollama", "displayName": "Qwen2.5 7B（本机 Ollama）", "family": "qwen", "provider": "local-ollama", "contextLength": 32768, "maxTokens": 4096, "tools": true }
+  ]
+}
