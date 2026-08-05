@@ -32,6 +32,7 @@
 - 前台运行用 `--serve`（双横杠；带事件阻塞，stdin 重定向下可靠）。`-run` 经 Agent 需交互控制台，管道模式抛 `ReadKey` 异常。
 - **服务安装无法在本沙箱完成**：`sc`/`wmic`/`reg`/`schtasks` 等系统级工具被安全策略禁用；`exe -i` 在非管理员环境触发 Agent 自动提权→`WindowsService.ExecutablePath` 空值→`UriFormatException` 崩溃。正确安装只能在**用户本机右键 exe → 以管理员身份运行 → 菜单 2（安装服务）**完成（此前已成功）。沙箱内临时运行用 `--serve` 后台进程即可（占 11434，装服务前需先停掉）。
 - 自检 `.exe self-test`：零框架、退出码=失败数，**当前 157/0 全绿**（hermetic，不依赖部署目录 settings.json）。
+- **exe 版本号 = 构建日期+时间（对齐 NewLife.Agent）**：`NewLife.OllamaHub.csproj` 用 MSBuild 属性在构建期求值，设 `AssemblyVersion=1.0.<距2000-01-01天数>.<自午夜半秒数>`（即 `ax.Version` 显示的 `1.0.NNNNN.xxxxx` 形式）、`FileVersion=1.0.<YYYY>.<MMDD>`（人类可读）。勿改回固定版本（用户 2026-08-05 明确要求日期+时间）。读版本资源可用 `AssemblyName.GetAssemblyName(path).Version` + `FileVersionInfo`（见 `/c/Users/Troy/AppData/Local/Temp/verprobe/`）。
 - 端口：hub 127.0.0.1:11434；mock openai :9099；fake ollama :11435。
 
 ## 已修 Bug（勿重现）

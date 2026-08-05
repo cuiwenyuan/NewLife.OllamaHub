@@ -476,6 +476,12 @@ public sealed class OpenAiAccumulator
     /// <summary>截至当前累积的推理文本（P0-1 多轮缓存用）。</summary>
     public String ReasoningText => _reasoning.ToString();
 
+    /// <summary>截至当前的累计提示 token（供 UsageStats 埋点）。</summary>
+    public Int64 PromptTokens => _promptTokens;
+
+    /// <summary>截至当前的累计生成 token（供 UsageStats 埋点）。</summary>
+    public Int64 CompletionTokens => _completionTokens;
+
     private void MergeToolCalls(List<OpenAiToolCallDelta>? deltas)
     {
         if (deltas == null) return;

@@ -14,6 +14,16 @@
     <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishTrimmed>false</PublishTrimmed>
+    <!-- 版本号编码构建日期+时间，对齐 NewLife 系列组件显示风格：
+         AssemblyVersion = major.minor.<距2000-01-01天数>.<自午夜起的半秒数>（ax.Version 显示，等价于 NewLife.Agent 的 10.17.9709.31882）
+         FileVersion     = major.minor.<YYYY>.<MMDD>（人类可读日期，等价于 NewLife.Agent 的 10.17.2026.0801） -->
+    <_BuildDays>$([System.DateTime]::Now.Subtract($([System.DateTime]::Parse('2000-01-01'))).Days)</_BuildDays>
+    <_BuildHalfSeconds>$([System.Convert]::ToInt32($([MSBuild]::Divide($([System.DateTime]::Now.TimeOfDay.TotalSeconds), 2))))</_BuildHalfSeconds>
+    <_BuildYear>$([System.DateTime]::Now.Year)</_BuildYear>
+    <_BuildMmdd>$([System.DateTime]::Now.ToString('MMdd'))</_BuildMmdd>
+    <Version>1.0.$(_BuildYear).$(_BuildMmdd)</Version>
+    <AssemblyVersion>1.0.$(_BuildDays).$(_BuildHalfSeconds)</AssemblyVersion>
+    <FileVersion>1.0.$(_BuildYear).$(_BuildMmdd)</FileVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- 仅引用 NewLife 生态 NuGet，无任何第三方（含 Microsoft.Extensions.*） -->

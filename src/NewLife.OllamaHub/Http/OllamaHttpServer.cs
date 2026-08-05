@@ -504,10 +504,11 @@ public class OllamaHttpServer
                 var single = acc.BuildSingle();
                 // 非流式路径推理由累加器捕获
                 if (reasoning.Length == 0) reasoning.Append(acc.ReasoningText);
-                UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
                 SetDiagnosticHeaders(ctx, requestedModel, model, provider, provider.ApiMode);
                 WriteRaw(ctx, single, HttpStatusCode.OK);
             }
+            // 关键修复：流式（VS Copilot 主流）与非流式都需记成功；流式累加器未聚合，token 记 0
+            UsageStats.Instance.RecordSuccess(model.Id, acc.PromptTokens, acc.CompletionTokens);
 
             // P0-1：缓存本次推理，供后续多轮重注入，保持推理连贯
             if (model.Thinking && model.IncludeReasoningInRequest)
