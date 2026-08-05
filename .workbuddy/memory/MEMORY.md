@@ -49,3 +49,10 @@
 
 ## 文档索引
 - `docs/README.md`（索引）、`architecture.md`、`configuration.md`、`providers.md`（11 家 BaseUrl+模型）、`security.md`、`install-as-service.md`（可视化安装）、`vs-setup.md`（VS Copilot 接入，含 5 张截图）、`upgrade.md`、`troubleshooting.md`、`faq.md`。
+- `docs/competitor-analysis.md`（竞品 iqmeta/copilot-ollama 分析 + P0 计划 + 第二轮复评）、`docs/newlife-ai-evaluation.md`（NewLife.AI 覆盖评估 + 决策记录）。
+
+## 战略决策：不引入 NewLife.AI（路线 D 观察，2026-08-05）
+- **结论**：暂不引入 NewLife.AI（核心库与 ChatAI 网关均不引入）。OllamaHub 继续自维护手写上游适配 + Ollama 兼容代理端点。
+- **理由**：NewLife.AI 核心库虽无 ASP.NET Core、46 家供应商，但 `NewLife.ChatAI` 网关仅 OpenAI/Anthropic/Gemini 协议、**无 Ollama `/api/*` 协议面**，且是 ASP.NET Core；Ollama 兼容端点是 OllamaHub 独有护城河（双协议桥接 VS Copilot + 真实 Ollama）。
+- **再评估触发条件**（任一满足即重开 `docs/newlife-ai-evaluation.md` §6）：① NewLife.AI 原生提供 Ollama 兼容服务端；② 提供非 ASP.NET Core 轻量网关/宿主替代 `NewLife.Core` HttpServer；③ 手写适配器维护成本陡增（模型 id 频繁漂移/新增供应商需求大）时改评路线 A。
+- P0 成果（推理缓存重注 / X-Proxy 诊断头 / force-mode）不受影响。
