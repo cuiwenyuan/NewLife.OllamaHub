@@ -20,7 +20,8 @@
 
 1. **下载并解压**：从 [GitHub Releases](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases) 下载单文件压缩包，在资源管理器中**右键解压**到任意目录（如 `C:\Tools\NewLife.OllamaHub\`）。
 2. **右键安装为服务**：进入解压目录，右键 `NewLife.OllamaHub.exe` → **以管理员身份运行**。弹出的菜单会自动识别状态，按 `2` 安装服务、按 `3` 启动服务即可（菜单项会随服务状态自动变化）。
-   ![未安装时的菜单](docs/assets/install-menu-initial.png)
+   ![按 2 安装服务](docs/assets/install-menu-press-2.png)
+   ![按 3 启动服务](docs/assets/install-menu-press-3.png)
 3. **可视化配置模型与 Key**：仍在刚才的菜单里，按 `p` 一键生成 11 家供应商预设，按 `k` 逐个填入 API Key（或按 `c` 走配置向导），全程图形化。配置写入后若服务已在运行，会通过**配置热重载**自动生效，无需重启。
    > 菜单快捷键与完整截图见[安装为 Windows 服务](docs/install-as-service.md)。
 4. **在 Visual Studio 中接入**：打开 GitHub Copilot Chat → Manage models → 选 Ollama → 端点填 `http://localhost:11434`。详见[VS 接入指南](docs/vs-setup.md)。
