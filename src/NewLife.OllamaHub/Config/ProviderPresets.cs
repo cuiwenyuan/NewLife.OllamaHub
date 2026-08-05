@@ -76,7 +76,7 @@ public static class ProviderPresets
         {
             Id = "deepseek",
             Name = "DeepSeek",
-            BaseUrl = "https://api.deepseek.com",
+            BaseUrl = "https://api.deepseek.com/v1",
             Models =
             {
                 // 2026-08 更新：DeepSeek 官方已弃用 deepseek-chat / deepseek-reasoner（2026-07-24 起返回错误），

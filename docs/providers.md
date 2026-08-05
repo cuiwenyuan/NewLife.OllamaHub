@@ -4,7 +4,7 @@
 
 | id | 名称 | baseUrl | 备注 |
 |---|---|---|---|
-| `deepseek` | DeepSeek | `https://api.deepseek.com` | 当前模型：`deepseek-v4-flash` / `deepseek-v4-pro`（1M 上下文，max 384K）；旧名 `deepseek-chat` / `deepseek-reasoner` 已于 2026-07-24 弃用。Pro 推理模型需 `dropParams:["temperature","top_p"]`、`includeReasoningInRequest:false` |
+| `deepseek` | DeepSeek | `https://api.deepseek.com/v1` | 当前模型：`deepseek-v4-flash` / `deepseek-v4-pro`（1M 上下文，max 384K）；旧名 `deepseek-chat` / `deepseek-reasoner` 已于 2026-07-24 弃用。Pro 推理模型需 `dropParams:["temperature","top_p"]`、`includeReasoningInRequest:false` |
 | `qwen` | 阿里通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | 兼容模式地址；当前模型 `qwen3.8-max` / `qwen3.7-plus` / `qwen3.7-flash`（旧名 `qwen-plus`/`qwen-max`/`qwen2.5-*` 已迭代） |
 | `kimi` | Moonshot Kimi | `https://api.moonshot.cn/v1` | 当前模型 `kimi-k3` / `kimi-k2.7-code` / `kimi-k2.6`（旧名 `moonshot-v1-*` 已迭代） |
 | `glm` | 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | 当前模型 `glm-5.2` / `glm-5.1` / `glm-4.7` / `glm-4.7-flashx`（旧名 `glm-4-plus/air/flash` 已迭代） |

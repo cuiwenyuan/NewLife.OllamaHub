@@ -43,9 +43,9 @@ OllamaHub 会把 `settings.json` 里配置的模型以 Ollama 格式暴露出来
 
 ### 5. 切换模型开始使用
 
-保存后，再次点击模型下拉框，会在 **Other models** 下看到刚才添加的 Ollama 模型。选中即可在 Copilot Chat / Agent 模式中使用。
+保存后，再次点击模型下拉框，会在 **Other models** 下看到刚才添加的 Ollama 模型。选中 `deepseek-v4-flash` 等模型后，发送消息即可看到模型实际应答。
 
-![模型已添加](assets/vs-copilot-models-added.png)
+![使用 deepseek-v4-flash 提问](assets/vs-copilot-deepseek-v4-flash-in-use.png)
 
 ## 常见问题
 

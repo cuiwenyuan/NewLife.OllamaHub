@@ -11,7 +11,7 @@ public class ProviderOptions
     /// <summary>展示名（可空，默认等于 Id）。</summary>
     public String? Name { get; set; }
 
-    /// <summary>上游 BaseUrl，例如 https://api.deepseek.com 。</summary>
+    /// <summary>上游 BaseUrl，例如 https://api.deepseek.com/v1 。</summary>
     public String BaseUrl { get; set; } = "";
 
     /// <summary>协议模式：openai（默认）/ ollama（透传 /api/chat）。</summary>
