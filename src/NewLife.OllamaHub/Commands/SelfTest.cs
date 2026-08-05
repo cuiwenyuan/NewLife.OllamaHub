@@ -41,6 +41,14 @@ namespace NewLife.OllamaHub.Commands
             CheckStreamPassthrough();
             CheckForceStream();
             CheckDropParams();
+
+            // ---- P0：强制参数覆盖（force-mode）/ 推理缓存（reasoning cache） ----
+            CheckForceModeOverride();
+            CheckForceModeFillDefault();
+            CheckForceModeDropWins();
+            CheckReasoningEffortEmission();
+            CheckReasoningCacheInjectStore();
+
             CheckChatResponseConversion();
             CheckGenerateResponseConversion();
             CheckThinkingMapping();
@@ -157,6 +165,112 @@ namespace NewLife.OllamaHub.Commands
             var zeroJson = OpenAiAdapter.BuildOpenAiRequest(zero, new ModelOptions { Id = "m1" });
             XTrace.WriteLine("  [DEBUG] temperature=0 请求体：{0}", zeroJson);
             Assert("边界：temperature=0 不被吞掉", zeroJson.Contains("\"temperature\":0"));
+        }
+
+        /// <summary>P0-3：force-mode 开启时，模型配置的采样值应<b>覆盖</b>客户端下发的值。</summary>
+        private static void CheckForceModeOverride()
+        {
+            var model = new ModelOptions { Id = "fm", OverrideClientParams = true, Temperature = 1.0, TopP = 0.5 };
+            var req = new OllamaChatRequest { model = "fm" };
+            req.messages.Add(new OllamaMessage { role = "user", content = "hi" });
+            req.options = new Dictionary<String, Object> { ["temperature"] = 0.3, ["top_p"] = 0.2 };
+
+            OpenAiAdapter.BuildOpenAiRequest(req, model, forceStream: true);
+            Assert("force-mode 覆盖：temperature 被覆写为 1.0", ((Double)req.options["temperature"]) == 1.0);
+            Assert("force-mode 覆盖：top_p 被覆写为 0.5", ((Double)req.options["top_p"]) == 0.5);
+
+            var json = OpenAiAdapter.BuildOpenAiRequest(
+                new OllamaChatRequest
+                {
+                    model = "fm",
+                    messages = new List<OllamaMessage> { new OllamaMessage { role = "user", content = "hi" } },
+                    options = new Dictionary<String, Object> { ["temperature"] = 0.3 },
+                }, model, forceStream: true);
+            Assert("force-mode 覆盖：上游请求体 temperature=1.0", json.Contains("\"temperature\":1"));
+        }
+
+        /// <summary>P0-3：默认模式（不强制）下，仅在客户端缺省时填入模型默认值；已给则不动。</summary>
+        private static void CheckForceModeFillDefault()
+        {
+            var model = new ModelOptions { Id = "fm", Temperature = 1.0 };
+
+            var empty = new OllamaChatRequest { model = "fm" };
+            empty.messages.Add(new OllamaMessage { role = "user", content = "hi" });
+            OpenAiAdapter.BuildOpenAiRequest(empty, model, forceStream: true);
+            Assert("force-mode 默认：客户端缺省→填入 temperature=1.0", ((Double)empty.options["temperature"]) == 1.0);
+
+            var withVal = new OllamaChatRequest { model = "fm" };
+            withVal.messages.Add(new OllamaMessage { role = "user", content = "hi" });
+            withVal.options = new Dictionary<String, Object> { ["temperature"] = 0.3 };
+            OpenAiAdapter.BuildOpenAiRequest(withVal, model, forceStream: true);
+            Assert("force-mode 默认：客户端已给→不覆盖(仍 0.3)", ((Double)withVal.options["temperature"]) == 0.3);
+        }
+
+        /// <summary>P0-3：dropParams 优先级高于 force-mode——即便强制覆盖，被丢弃的参数也绝不发送。</summary>
+        private static void CheckForceModeDropWins()
+        {
+            var model = new ModelOptions
+            {
+                Id = "fm",
+                OverrideClientParams = true,
+                Temperature = 1.0,
+                DropParams = new List<String> { "temperature" },
+            };
+            var req = new OllamaChatRequest { model = "fm" };
+            req.messages.Add(new OllamaMessage { role = "user", content = "hi" });
+            var json = OpenAiAdapter.BuildOpenAiRequest(req, model, forceStream: true);
+
+            Assert("force-mode：dropParams 优先（temperature 不出现于上游请求）", !json.Contains("\"temperature\""));
+            // 内部 opts 仍被赋值（便于审计），但输出已剔除
+            Assert("force-mode：drop 后 opts 仍含值（供审计）", req.options.ContainsKey("temperature"));
+        }
+
+        /// <summary>P0-3：模型配置 reasoning_effort 应在 openai 上游请求中下发。</summary>
+        private static void CheckReasoningEffortEmission()
+        {
+            var model = new ModelOptions { Id = "r", ReasoningEffort = "high" };
+            var req = new OllamaChatRequest { model = "r" };
+            req.messages.Add(new OllamaMessage { role = "user", content = "hi" });
+            var json = OpenAiAdapter.BuildOpenAiRequest(req, model, forceStream: true);
+            Assert("reasoning_effort：模型配置→下发", json.Contains("\"reasoning_effort\":\"high\""));
+        }
+
+        /// <summary>P0-1：推理内容多轮缓存——首轮缓存，次轮按前缀指纹重注入助手消息，且客户端自带 thinking 不覆盖、未命中不注入。</summary>
+        private static void CheckReasoningCacheInjectStore()
+        {
+            // 第一轮：用户提问，缓存（真实流程：响应成功后 Store(ComputeKey(全量消息), reasoning)）
+            var r1 = new List<OllamaMessage> { new OllamaMessage { role = "user", content = "hi" } };
+            var key1 = ReasoningCache.ComputeKey(r1, r1.Count);
+            ReasoningCache.Store(key1, "T1");
+
+            // 第二轮：上轮助手回复（无 thinking）进入；注入应回填 T1
+            var r2 = new List<OllamaMessage>
+            {
+                new OllamaMessage { role = "user", content = "hi" },
+                new OllamaMessage { role = "assistant", content = "A1" },
+                new OllamaMessage { role = "user", content = "follow up" },
+            };
+            ReasoningCache.Inject(r2);
+            Assert("推理缓存：第二轮注入上一轮推理", r2[1].thinking is String s && s == "T1");
+
+            // 已自带 thinking 的助手消息不覆盖（客户端可能已回传）
+            var r3 = new List<OllamaMessage>
+            {
+                new OllamaMessage { role = "user", content = "hi" },
+                new OllamaMessage { role = "assistant", content = "A1", thinking = "clientT" },
+                new OllamaMessage { role = "user", content = "follow up" },
+            };
+            ReasoningCache.Inject(r3);
+            Assert("推理缓存：已有 thinking 不被覆盖", r3[1].thinking is String s2 && s2 == "clientT");
+
+            // 未命中前缀：无缓存时不注入
+            var r4 = new List<OllamaMessage>
+            {
+                new OllamaMessage { role = "user", content = "unknown" },
+                new OllamaMessage { role = "assistant", content = "X" },
+            };
+            ReasoningCache.Inject(r4);
+            Assert("推理缓存：无命中不注入", r4[1].thinking == null || (r4[1].thinking is String e && e.Length == 0));
         }
 
         /// <summary>OpenAI 响应 → Ollama /api/chat：message 对象形态与用量统计。</summary>

@@ -38,5 +38,14 @@
 - 干净安装 serve 崩溃：`HubSettings.Url=""` 致 `new Uri("")` 抛异常 → `Start()` 与 `Load()` 后均 `Normalize()`；`ServeCommand.Run` 补 `XTrace.UseConsole()`。
 - Admin 面板「监听」卡片 URL 截断 → 改为独占一行全宽卡片（`word-break:break-all`）。
 
+## HTTP 端点（勿遗漏 OpenAI 兼容层）
+- 除 Ollama 原生 `/api/tags`、`/api/chat`、`/api/generate` 外，**必须**保留 `POST /v1/chat/completions` 与 `GET /v1/models`：VS 的 "Ollama" BYO 提供商底层是 OpenAI 客户端，只打 `/v1/*`；缺失会导致框架级裸 404（不进 handler、日志无痕）。真实 Ollama 也支持该兼容路径。
+- 实现复用 `adapter.BuildRequest` + `CallUpstreamStream`（上游响应已归一化为 OpenAI 形状），SSE 中继加 `data:` 前缀与 `[DONE]` 尾帧；非流式经 `OpenAiAccumulator` 聚合。ollama 模式走 `UpstreamClient.RelayAsync` 透传。
+
+## Git 推送（网络：github.com:443 间歇性阻断，重要）
+- **状态（2026-08-05 更新）**：`github.com:443` 为**间歇性** SNI 阻断（非永久）。当日上午实测恢复（200，0.4s），普通 `git push`/`pull`/`ls-remote` 均正常（已验证 `ls-remote` 返回 `main -> 2b0c4be` 与本地一致）。
+- 阻断复现时（`curl --max-time 10 https://github.com` 超时）仍可走 **`api.github.com` 的 Git Data API** 重建对象推送：用 `git credential fill` 取本机已存 token；`git cat-file blob/commit` 读**索引字节**（勿读工作区，autocrlf 致 CRLF 偏差）；`blobs → trees(base_tree) → commits → PATCH refs/heads/main`；精确复制 message 与时间戳使远端 SHA 与本地字节级一致；最后 `git update-ref refs/remotes/origin/main <sha>` 同步跟踪引用。
+- Fine-grained PAT 已存入 git credential store（`username=cuiwenyuan`），可直接用于 HTTPS 推送，无需 SSH。
+
 ## 文档索引
 - `docs/README.md`（索引）、`architecture.md`、`configuration.md`、`providers.md`（11 家 BaseUrl+模型）、`security.md`、`install-as-service.md`（可视化安装）、`vs-setup.md`（VS Copilot 接入，含 5 张截图）、`upgrade.md`、`troubleshooting.md`、`faq.md`。

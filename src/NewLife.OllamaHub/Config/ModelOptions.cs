@@ -38,6 +38,22 @@ public class ModelOptions
     /// <summary>回传上游时是否携带 reasoning（DeepSeek 要求不带）。</summary>
     public Boolean IncludeReasoningInRequest { get; set; } = true;
 
+    /// <summary>
+    /// 强制参数覆盖（force-mode）：开启后，用下方配置的采样值<b>覆盖</b>客户端下发的值
+    /// （如 Kimi 强制 temperature=1.0）；关闭时仅在客户端<b>缺省</b>时填入这些默认值。
+    /// 优先级低于 <see cref="DropParams"/>（被丢弃的参数始终不发送）。
+    /// </summary>
+    public Boolean OverrideClientParams { get; set; }
+
+    /// <summary>模型级默认/强制 temperature（配合 <see cref="OverrideClientParams"/>）。</summary>
+    public Double? Temperature { get; set; }
+
+    /// <summary>模型级默认/强制 top_p。</summary>
+    public Double? TopP { get; set; }
+
+    /// <summary>模型级默认/强制 reasoning_effort（OpenAI o-series 等支持；仅 openai 上游生效）。</summary>
+    public String? ReasoningEffort { get; set; }
+
     /// <summary>向上游发送时丢弃的参数（如推理模型不接受 temperature/top_p）。</summary>
     public List<String> DropParams { get; set; } = new();
 
@@ -59,6 +75,10 @@ public class ModelOptions
         Vision = Vision,
         Thinking = Thinking,
         IncludeReasoningInRequest = IncludeReasoningInRequest,
+        OverrideClientParams = OverrideClientParams,
+        Temperature = Temperature,
+        TopP = TopP,
+        ReasoningEffort = ReasoningEffort,
         DropParams = new List<String>(DropParams),
         Headers = new Dictionary<String, String>(Headers),
     };

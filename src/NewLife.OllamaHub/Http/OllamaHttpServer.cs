@@ -297,11 +297,13 @@ public class OllamaHttpServer
     private void HandleChat(IHttpContext ctx)
     {
         String? modelId = null;
+        String? requestedModel = null;
         try
         {
             var rawBody = ReadBody(ctx);
             var req = JsonHelper.ToJsonEntity<OllamaChatRequest>(rawBody)
                       ?? throw HubException.BadRequest("请求体无法解析为 Ollama chat 请求");
+            requestedModel = req.model;
             var (model, provider) = ResolveRoute(req.model);
             modelId = model.Id;
 
@@ -310,9 +312,15 @@ public class OllamaHttpServer
             {
                 var upstream = CallUpstreamRaw(provider, rawBody);
                 UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
+                SetDiagnosticHeaders(ctx, requestedModel, model, provider, "ollama");
                 WriteRaw(ctx, upstream, HttpStatusCode.OK);
                 return;
             }
+
+            // P0-1：先算存储指纹（注入前），再把缓存的推理重注入历史 assistant 消息
+            var storeKey = ReasoningCache.ComputeKey(req.messages, req.messages.Count);
+            if (model.Thinking && model.IncludeReasoningInRequest)
+                ReasoningCache.Inject(req.messages);
 
             // 统一向上游请求 stream:true，再由翻译器累积成 Ollama NDJSON：
             //   - 上游正常回 SSE → 逐块累积（done:false 帧 + 末帧 done:true）；
@@ -329,6 +337,7 @@ public class OllamaHttpServer
             {
                 UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
                 var oaLike = adapter.ConvertNonStream(fallback, model);
+                SetDiagnosticHeaders(ctx, requestedModel, model, provider, provider.ApiMode);
                 WriteRaw(ctx, OpenAiAdapter.ToOllamaNdJson(oaLike, model), HttpStatusCode.OK);
                 return;
             }
@@ -336,15 +345,21 @@ public class OllamaHttpServer
             if (req.stream)
             {
                 frames.Append(acc.Finalize()).Append('\n');
+                SetDiagnosticHeaders(ctx, requestedModel, model, provider, provider.ApiMode);
                 WriteRaw(ctx, frames.ToString(), HttpStatusCode.OK);
             }
             else
             {
                 // 非流式：只回汇总末帧（含完整 content 与 usage），丢弃中间 done:false 帧
+                SetDiagnosticHeaders(ctx, requestedModel, model, provider, provider.ApiMode);
                 WriteRaw(ctx, acc.Finalize(), HttpStatusCode.OK);
             }
             var usage = acc.Usage;
             UsageStats.Instance.RecordSuccess(model.Id, usage.Prompt, usage.Completion);
+
+            // P0-1：缓存本次推理，供后续多轮重注入，保持推理连贯
+            if (model.Thinking && model.IncludeReasoningInRequest)
+                ReasoningCache.Store(storeKey, acc.ThinkingText);
         }
         catch (Exception ex)
         {
@@ -413,11 +428,13 @@ public class OllamaHttpServer
     private void HandleOpenAiChat(IHttpContext ctx)
     {
         String? modelId = null;
+        String? requestedModel = null;
         try
         {
             var rawBody = ReadBody(ctx);
             var req = JsonHelper.ToJsonEntity<OpenAiChatRequest>(rawBody)
                       ?? throw HubException.BadRequest("请求体无法解析为 OpenAI chat 请求");
+            requestedModel = req.model;
             var (model, provider) = ResolveRoute(req.model);
             modelId = model.Id;
 
@@ -428,17 +445,26 @@ public class OllamaHttpServer
                 var upstream = _upstream.RelayAsync(provider, "/v1/chat/completions", rawBody, cts.Token)
                                       .GetAwaiter().GetResult();
                 UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
+                SetDiagnosticHeaders(ctx, requestedModel, model, provider, "ollama");
                 WriteSse(ctx, upstream);
                 return;
             }
 
             // 统一转换为 Ollama 请求形状，复用既有的适配 / 路由 / 流式逻辑
             var ollamaReq = ToOllamaRequest(req);
+
+            // P0-1：先算存储指纹（注入前），再把缓存的推理重注入历史 assistant 消息
+            var storeKey = ReasoningCache.ComputeKey(ollamaReq.messages, ollamaReq.messages.Count);
+            if (model.Thinking && model.IncludeReasoningInRequest)
+                ReasoningCache.Inject(ollamaReq.messages);
+
             var adapter = UpstreamAdapterFactory.Get(provider.ApiMode);
             var oaReq = adapter.BuildRequest(ollamaReq, model, forceStream: true);
 
             var sse = new StringBuilder();
             var acc = new OpenAiAccumulator(model);
+            // P0-1：累积推理内容用于多轮缓存（流式逐块抽取 reasoning_content）
+            var reasoning = new StringBuilder();
             var fallback = CallUpstreamStream(provider, model, oaReq, chunk =>
             {
                 // 各适配器已将上游响应归一化为 OpenAI 形状 SSE 块，直接中继给 OpenAI 客户端即可
@@ -446,12 +472,22 @@ public class OllamaHttpServer
                     sse.Append("data: ").Append(chunk).Append("\n\n");
                 else
                     acc.Consume(chunk);
+
+                // 抽取推理内容增量（解析失败忽略，不阻断主流）
+                try
+                {
+                    var c = JsonHelper.ToJsonEntity<OpenAiChunk>(chunk);
+                    var rc = c?.choices != null && c.choices.Count > 0 ? c.choices[0].delta?.reasoning_content : null;
+                    if (!String.IsNullOrEmpty(rc)) reasoning.Append(rc);
+                }
+                catch { /* 单块解析失败不影响主流程 */ }
             });
 
             if (fallback != null)
             {
                 // 上游未用 SSE（返回单 JSON）：该 JSON 本身即合法 OpenAI 非流式响应，原样返回
                 UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
+                SetDiagnosticHeaders(ctx, requestedModel, model, provider, provider.ApiMode);
                 WriteRaw(ctx, fallback, HttpStatusCode.OK);
                 return;
             }
@@ -459,15 +495,23 @@ public class OllamaHttpServer
             if (req.stream)
             {
                 sse.Append("data: [DONE]\n\n");
+                SetDiagnosticHeaders(ctx, requestedModel, model, provider, provider.ApiMode);
                 WriteSse(ctx, sse.ToString());
             }
             else
             {
                 // 非流式：把累积的 OpenAI 块聚合成单个响应 JSON
                 var single = acc.BuildSingle();
+                // 非流式路径推理由累加器捕获
+                if (reasoning.Length == 0) reasoning.Append(acc.ReasoningText);
                 UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
+                SetDiagnosticHeaders(ctx, requestedModel, model, provider, provider.ApiMode);
                 WriteRaw(ctx, single, HttpStatusCode.OK);
             }
+
+            // P0-1：缓存本次推理，供后续多轮重注入，保持推理连贯
+            if (model.Thinking && model.IncludeReasoningInRequest)
+                ReasoningCache.Store(storeKey, reasoning.ToString());
         }
         catch (Exception ex)
         {
@@ -504,6 +548,8 @@ public class OllamaHttpServer
                 role = m.role,
                 content = m.content,
                 tool_calls = m.tool_calls,
+                // 保留客户端回传的推理内容（若有），避免多轮时推理上下文丢失
+                thinking = m.reasoning_content,
             });
         }
         var opts = new Dictionary<String, Object>();
@@ -683,5 +729,23 @@ public class OllamaHttpServer
     private static void WriteError(IHttpContext ctx, HttpStatusCode status, String message)
     {
         WriteRaw(ctx, JsonHelper.ToJson(new OllamaErrorResponse { error = message }), status);
+    }
+
+    /// <summary>
+    /// 写入诊断响应头（P0-2）。必须在设置响应体 <c>Body</c> 之前调用，
+    /// 因为 NewLife.Http 为单发响应模型：响应头随 Body 一并构建发出。
+    /// 这些头用于调试代理链路（请求的模型 / 实际解析到的模型 / 供应商 / 上游模式）。
+    /// </summary>
+    /// <param name="ctx">当前 HTTP 上下文。</param>
+    /// <param name="requestedModel">客户端最初请求的模型名（可能未注册）。</param>
+    /// <param name="model">实际解析到的模型配置。</param>
+    /// <param name="provider">实际解析到的供应商。</param>
+    /// <param name="upstreamMode">上游适配模式（openai / anthropic / gemini / ollama）。</param>
+    private static void SetDiagnosticHeaders(IHttpContext ctx, String? requestedModel, ModelOptions model, ProviderOptions provider, String upstreamMode)
+    {
+        ctx.Response["X-Proxy-Requested-Model"] = requestedModel ?? "";
+        ctx.Response["X-Proxy-Resolved-Model"] = model.Id ?? "";
+        ctx.Response["X-Proxy-Provider"] = provider.Id ?? "";
+        ctx.Response["X-Proxy-Upstream-Mode"] = upstreamMode ?? "";
     }
 }

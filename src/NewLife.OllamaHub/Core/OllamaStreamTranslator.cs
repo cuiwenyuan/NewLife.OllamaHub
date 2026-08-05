@@ -76,6 +76,9 @@ public sealed class OllamaStreamTranslator
     /// <summary>截至当前的累计 token 用量（供 UsageStats 埋点）。</summary>
     public (Int64 Prompt, Int64 Completion) Usage => (_promptEval, _eval);
 
+    /// <summary>截至当前累积的推理文本（P0-1 多轮缓存用）。</summary>
+    public String ThinkingText => _thinking.ToString();
+
     // ---- 内部 ----
 
     private void MergeToolCalls(List<OpenAiToolCallDelta>? deltas)

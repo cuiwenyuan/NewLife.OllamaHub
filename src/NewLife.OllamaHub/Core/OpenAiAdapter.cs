@@ -27,6 +27,9 @@ public static class OpenAiAdapter
         if (req == null) throw new ArgumentNullException(nameof(req));
         if (model == null) throw new ArgumentNullException(nameof(model));
 
+        // P0-3 force-mode：先按模型配置填充/覆盖采样参数，再走既有 dropParams 逻辑
+        ApplyModelParams(req, model);
+
         // 用字典逐字段构造，而非"定义带可空属性的 DTO 再序列化"：
         //   - 若保留可空 DTO 且 nullValue=true，会输出 "temperature":null，dropParams 形同虚设，
         //     推理类模型（DeepSeek-R1 等）收到显式 null 直接报参数错误；
@@ -64,6 +67,12 @@ public static class OpenAiAdapter
                     ["content"] = m.content,
                 };
                 if (m.tool_calls != null) one["tool_calls"] = m.tool_calls;
+                // P0-1：推理模型多轮对话时，把缓存的 reasoning_content 随 assistant 消息回传上游，保持推理连贯
+                if (String.Equals(m.role, "assistant", StringComparison.OrdinalIgnoreCase)
+                    && m.thinking is String th && th.Length > 0)
+                {
+                    one["reasoning_content"] = th;
+                }
                 messages.Add(one);
             }
         }
@@ -78,6 +87,11 @@ public static class OpenAiAdapter
             // 以兼容"忽略 stream:false 仍回 SSE"的上游（详见 HandleChat 注释）。
             ["stream"] = forceStream ? true : req.stream,
         };
+
+        // P0-3：reasoning_effort 仅在 openai 上游生效（o-series 等），客户端不 forwards 该字段，
+        // 故只要模型配置了即下发（受 OverrideClientParams 语义一致：缺省即填、强制即覆盖）。
+        if (!String.IsNullOrEmpty(model.ReasoningEffort))
+            oa["reasoning_effort"] = model.ReasoningEffort;
 
         // 采样参数：从 Ollama options 提取，受模型 dropParams 约束
         var drop = model.DropParams ?? new List<String>();
@@ -101,6 +115,43 @@ public static class OpenAiAdapter
 
         return JsonHelper.ToJson(oa);
     }
+
+    /// <summary>
+    /// P0-3 force-mode：按模型配置填充/覆盖采样参数（temperature / top_p / max_tokens）。
+    /// 原地修改 <paramref name="req"/>.options，使后续 dropParams 逻辑在已应用的值之上继续过滤。
+    /// </summary>
+    /// <param name="req">Ollama 聊天请求（options 会被原地修改）。</param>
+    /// <param name="model">模型配置（提供采样默认值与 <see cref="ModelOptions.OverrideClientParams"/> 开关）。</param>
+    internal static void ApplyModelParams(OllamaChatRequest req, ModelOptions model)
+    {
+        if (req == null || model == null) return;
+        var opts = req.options ??= new Dictionary<String, Object>();
+        var force = model.OverrideClientParams;
+
+        ApplyParam(opts, "temperature", model.Temperature, force);
+        ApplyParam(opts, "top_p", model.TopP, force);
+        if (model.MaxTokens > 0)
+        {
+            // max_tokens 的"客户端已指定"需同时识别上游别名 num_predict，
+            // 否则模型默认 4096 会在非强制模式下覆盖客户端用 num_predict 表达的意图（回归点）。
+            var clientHas = HasNumeric(opts, "max_tokens") || HasNumeric(opts, "num_predict");
+            if (force || !clientHas) opts["max_tokens"] = model.MaxTokens;
+        }
+    }
+
+    private static void ApplyParam(Dictionary<String, Object> opts, String key, Object? configured, Boolean force)
+    {
+        if (configured == null) return;
+        var hasClient = opts.TryGetValue(key, out var o) && o != null && IsNumber(o);
+        // 强制模式：一律覆盖；默认模式：仅当客户端缺省时填入
+        if (force) opts[key] = configured;
+        else if (!hasClient) opts[key] = configured;
+    }
+
+    private static Boolean HasNumeric(Dictionary<String, Object> opts, String key)
+        => opts.TryGetValue(key, out var o) && o != null && IsNumber(o);
+
+    private static Boolean IsNumber(Object o) => o is Double or Single or Int64 or Int32;
 
     /// <summary>把上游 OpenAI 非流式响应转换为 Ollama /api/chat 单帧 NDJSON（含尾换行）。</summary>
     /// <param name="oaJson">上游返回的 JSON 文本。</param>
@@ -348,6 +399,7 @@ public sealed class OpenAiAccumulator
 {
     private readonly ModelOptions _model;
     private readonly StringBuilder _content = new();
+    private readonly StringBuilder _reasoning = new();
     private readonly List<Dictionary<String, Object?>> _toolCalls = new();
     private String _id = "";
     private String _upstreamModel = "";
@@ -374,6 +426,7 @@ public sealed class OpenAiAccumulator
         var choice = chunk.choices != null && chunk.choices.Count > 0 ? chunk.choices[0] : null;
         var delta = choice?.delta;
         if (delta?.content != null) _content.Append(delta.content);
+        if (delta?.reasoning_content != null) _reasoning.Append(delta.reasoning_content);
         if (delta?.tool_calls != null) MergeToolCalls(delta.tool_calls);
         if (!String.IsNullOrEmpty(choice?.finish_reason)) _finishReason = choice!.finish_reason!;
 
@@ -393,6 +446,7 @@ public sealed class OpenAiAccumulator
             ["role"] = "assistant",
             ["content"] = _content.ToString(),
         };
+        if (_reasoning.Length > 0) message["reasoning_content"] = _reasoning.ToString();
         if (_toolCalls.Count > 0) message["tool_calls"] = _toolCalls.ToArray();
 
         var choice = new Dictionary<String, Object?>
@@ -418,6 +472,9 @@ public sealed class OpenAiAccumulator
         };
         return JsonHelper.ToJson(resp);
     }
+
+    /// <summary>截至当前累积的推理文本（P0-1 多轮缓存用）。</summary>
+    public String ReasoningText => _reasoning.ToString();
 
     private void MergeToolCalls(List<OpenAiToolCallDelta>? deltas)
     {
