@@ -119,6 +119,10 @@ public class OllamaHttpServer
         server.MapPost("/api/show", HandleShow);
         server.MapPost("/api/chat", HandleChat);
         server.MapPost("/api/generate", HandleGenerate);
+        // OpenAI 兼容端点：VS/GitHub Copilot 的 "Ollama" BYO 提供商底层用 OpenAI 客户端，
+        // 实际打的是 /v1/chat/completions（真实 Ollama 同样支持），此前缺失导致 404。
+        server.MapPost("/v1/chat/completions", HandleOpenAiChat);
+        server.MapGet("/v1/models", HandleOpenAiModels);
         server.MapGet("/api/status", HandleStatus);
         server.MapGet("/admin", HandleAdmin);
     }
@@ -402,6 +406,123 @@ public class OllamaHttpServer
             if (modelId != null) UsageStats.Instance.RecordError(modelId, ex.Message);
             WriteException(ctx, ex);
         }
+    }
+
+    // ---- OpenAI 兼容端点（VS Copilot "Ollama" BYO 提供商底层用 OpenAI 客户端实际调用） ----
+
+    private void HandleOpenAiChat(IHttpContext ctx)
+    {
+        String? modelId = null;
+        try
+        {
+            var rawBody = ReadBody(ctx);
+            var req = JsonHelper.ToJsonEntity<OpenAiChatRequest>(rawBody)
+                      ?? throw HubException.BadRequest("请求体无法解析为 OpenAI chat 请求");
+            var (model, provider) = ResolveRoute(req.model);
+            modelId = model.Id;
+
+            // 真实 Ollama 透传：原样转发到其原生 /v1/chat/completions（真实 Ollama 同样支持该 OpenAI 兼容端点）
+            if (String.Equals(provider.ApiMode, "ollama", StringComparison.OrdinalIgnoreCase))
+            {
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromMinutes(5));
+                var upstream = _upstream.RelayAsync(provider, "/v1/chat/completions", rawBody, cts.Token)
+                                      .GetAwaiter().GetResult();
+                UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
+                WriteSse(ctx, upstream);
+                return;
+            }
+
+            // 统一转换为 Ollama 请求形状，复用既有的适配 / 路由 / 流式逻辑
+            var ollamaReq = ToOllamaRequest(req);
+            var adapter = UpstreamAdapterFactory.Get(provider.ApiMode);
+            var oaReq = adapter.BuildRequest(ollamaReq, model, forceStream: true);
+
+            var sse = new StringBuilder();
+            var acc = new OpenAiAccumulator(model);
+            var fallback = CallUpstreamStream(provider, model, oaReq, chunk =>
+            {
+                // 各适配器已将上游响应归一化为 OpenAI 形状 SSE 块，直接中继给 OpenAI 客户端即可
+                if (req.stream)
+                    sse.Append("data: ").Append(chunk).Append("\n\n");
+                else
+                    acc.Consume(chunk);
+            });
+
+            if (fallback != null)
+            {
+                // 上游未用 SSE（返回单 JSON）：该 JSON 本身即合法 OpenAI 非流式响应，原样返回
+                UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
+                WriteRaw(ctx, fallback, HttpStatusCode.OK);
+                return;
+            }
+
+            if (req.stream)
+            {
+                sse.Append("data: [DONE]\n\n");
+                WriteSse(ctx, sse.ToString());
+            }
+            else
+            {
+                // 非流式：把累积的 OpenAI 块聚合成单个响应 JSON
+                var single = acc.BuildSingle();
+                UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
+                WriteRaw(ctx, single, HttpStatusCode.OK);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (modelId != null) UsageStats.Instance.RecordError(modelId, ex.Message);
+            WriteException(ctx, ex);
+        }
+    }
+
+    private void HandleOpenAiModels(IHttpContext ctx)
+    {
+        var data = new List<Object>();
+        foreach (var m in ModelRegistry.Instance.Models)
+        {
+            data.Add(new Dictionary<String, Object?>
+            {
+                ["id"] = m.Id,
+                ["object"] = "model",
+                ["owned_by"] = m.OwnedBy ?? m.Family ?? "ollamahub",
+                ["created"] = 0,
+            });
+        }
+        var resp = new Dictionary<String, Object?> { ["object"] = "list", ["data"] = data.ToArray() };
+        WriteJsonNoCharset(ctx, resp, HttpStatusCode.OK);
+    }
+
+    /// <summary>把 OpenAI chat 请求转换为 Ollama chat 请求形状（供适配器构造上游请求）。</summary>
+    private static OllamaChatRequest ToOllamaRequest(OpenAiChatRequest req)
+    {
+        var ollama = new OllamaChatRequest { model = req.model, stream = req.stream };
+        foreach (var m in req.messages)
+        {
+            ollama.messages.Add(new OllamaMessage
+            {
+                role = m.role,
+                content = m.content,
+                tool_calls = m.tool_calls,
+            });
+        }
+        var opts = new Dictionary<String, Object>();
+        if (req.temperature != null) opts["temperature"] = req.temperature.Value;
+        if (req.top_p != null) opts["top_p"] = req.top_p.Value;
+        if (req.max_tokens != null) opts["max_tokens"] = req.max_tokens.Value;
+        if (opts.Count > 0) ollama.options = opts;
+        ollama.tools = req.tools;
+        ollama.tool_choice = req.tool_choice;
+        return ollama;
+    }
+
+    /// <summary>以 text/event-stream 写出 SSE 响应体（OpenAI 兼容流式）。</summary>
+    private static void WriteSse(IHttpContext ctx, String text)
+    {
+        ctx.Response.StatusCode = HttpStatusCode.OK;
+        ctx.Response.ContentType = "text/event-stream";
+        var bytes = Encoding.UTF8.GetBytes(text);
+        ctx.Response.Body = new ArrayPacket(bytes, 0, bytes.Length);
     }
 
     private void HandleStatus(IHttpContext ctx)

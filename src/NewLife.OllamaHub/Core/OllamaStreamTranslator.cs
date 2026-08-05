@@ -153,6 +153,15 @@ public sealed class OllamaStreamTranslator
 /// <summary>OpenAI /v1/chat/completions 流式块。</summary>
 public class OpenAiChunk
 {
+    /// <summary>块 Id（上游回显，常用于聚合非流式响应时回填）。</summary>
+    public String? id { get; set; }
+
+    /// <summary>上游模型标识（回显）。</summary>
+    public String? model { get; set; }
+
+    /// <summary>Unix 时间戳（秒）。</summary>
+    public Int64 created { get; set; }
+
     /// <summary>选择列表（取 [0]）。</summary>
     public List<OpenAiChunkChoice> choices { get; set; } = new();
 

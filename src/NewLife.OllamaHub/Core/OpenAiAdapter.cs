@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using NewLife.Log;
 using NewLife.OllamaHub.Config;
 using NewLife.Serialization;
@@ -280,6 +281,12 @@ public class OpenAiChatRequest
 
     /// <summary>最大生成 token。</summary>
     public Int32? max_tokens { get; set; }
+
+    /// <summary>工具定义（Copilot Agent 模式下发，OpenAI 风格），原样透传上游。</summary>
+    public Object? tools { get; set; }
+
+    /// <summary>工具选择策略（auto / none / 指定函数），原样透传上游。</summary>
+    public Object? tool_choice { get; set; }
 }
 
 /// <summary>OpenAI 消息。</summary>
@@ -329,4 +336,112 @@ public class OpenAiUsage
 
     /// <summary>总 token 数。</summary>
     public Int32 total_tokens { get; set; }
+}
+
+/// <summary>
+/// 把多个 OpenAI 流式块（<see cref="OpenAiChunk"/>）累积成单个非流式 OpenAI 响应 JSON。
+/// 用于 /v1/chat/completions 在客户端要求非流式（stream:false）时的输出。
+/// 与 <see cref="OllamaStreamTranslator"/> 对称：后者把上游 OpenAI 块翻成 Ollama NDJSON，
+/// 本类把同一份 OpenAI 块聚合成 OpenAI 单 JSON。
+/// </summary>
+public sealed class OpenAiAccumulator
+{
+    private readonly ModelOptions _model;
+    private readonly StringBuilder _content = new();
+    private readonly List<Dictionary<String, Object?>> _toolCalls = new();
+    private String _id = "";
+    private String _upstreamModel = "";
+    private Int64 _created;
+    private String _finishReason = "stop";
+    private Int32 _promptTokens, _completionTokens;
+
+    /// <summary>构造累积器。</summary>
+    public OpenAiAccumulator(ModelOptions model) => _model = model ?? throw new ArgumentNullException(nameof(model));
+
+    /// <summary>消费一个 OpenAI SSE 块 JSON（已去除 data: 前缀）。</summary>
+    public void Consume(String sseJson)
+    {
+        if (String.IsNullOrEmpty(sseJson)) return;
+        OpenAiChunk? chunk;
+        try { chunk = JsonHelper.ToJsonEntity<OpenAiChunk>(sseJson); }
+        catch { return; }
+        if (chunk == null) return;
+
+        if (!String.IsNullOrEmpty(chunk.id)) _id = chunk.id!;
+        if (!String.IsNullOrEmpty(chunk.model)) _upstreamModel = chunk.model!;
+        if (chunk.created != 0) _created = chunk.created;
+
+        var choice = chunk.choices != null && chunk.choices.Count > 0 ? chunk.choices[0] : null;
+        var delta = choice?.delta;
+        if (delta?.content != null) _content.Append(delta.content);
+        if (delta?.tool_calls != null) MergeToolCalls(delta.tool_calls);
+        if (!String.IsNullOrEmpty(choice?.finish_reason)) _finishReason = choice!.finish_reason!;
+
+        if (chunk.usage != null)
+        {
+            _promptTokens = chunk.usage.prompt_tokens;
+            _completionTokens = chunk.usage.completion_tokens;
+        }
+    }
+
+    /// <summary>产出单个非流式 OpenAI 响应 JSON。</summary>
+    public String BuildSingle()
+    {
+        var created = _created != 0 ? _created : DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var message = new Dictionary<String, Object?>
+        {
+            ["role"] = "assistant",
+            ["content"] = _content.ToString(),
+        };
+        if (_toolCalls.Count > 0) message["tool_calls"] = _toolCalls.ToArray();
+
+        var choice = new Dictionary<String, Object?>
+        {
+            ["index"] = 0,
+            ["message"] = message,
+            ["finish_reason"] = _finishReason,
+        };
+
+        var resp = new Dictionary<String, Object?>
+        {
+            ["id"] = String.IsNullOrEmpty(_id) ? "chatcmpl-ollamahub" : _id,
+            ["object"] = "chat.completion",
+            ["created"] = created,
+            ["model"] = String.IsNullOrEmpty(_upstreamModel) ? _model.Id : _upstreamModel,
+            ["choices"] = new[] { choice },
+            ["usage"] = new Dictionary<String, Object?>
+            {
+                ["prompt_tokens"] = _promptTokens,
+                ["completion_tokens"] = _completionTokens,
+                ["total_tokens"] = _promptTokens + _completionTokens,
+            },
+        };
+        return JsonHelper.ToJson(resp);
+    }
+
+    private void MergeToolCalls(List<OpenAiToolCallDelta>? deltas)
+    {
+        if (deltas == null) return;
+        foreach (var d in deltas)
+        {
+            Dictionary<String, Object?> tc;
+            if (d.index >= 0 && d.index < _toolCalls.Count) tc = _toolCalls[d.index];
+            else { tc = new Dictionary<String, Object?>(); _toolCalls.Add(tc); }
+
+            if (!String.IsNullOrEmpty(d.id)) tc["id"] = d.id;
+            if (!String.IsNullOrEmpty(d.type)) tc["type"] = d.type;
+            if (d.function != null)
+            {
+                var fn = tc.ContainsKey("function") && tc["function"] is Dictionary<String, Object?> f
+                    ? f : new Dictionary<String, Object?>();
+                if (!String.IsNullOrEmpty(d.function.name)) fn["name"] = d.function.name;
+                if (d.function.arguments != null)
+                {
+                    var prev = fn.ContainsKey("arguments") && fn["arguments"] != null ? fn["arguments"]!.ToString() : "";
+                    fn["arguments"] = prev + d.function.arguments;
+                }
+                tc["function"] = fn;
+            }
+        }
+    }
 }

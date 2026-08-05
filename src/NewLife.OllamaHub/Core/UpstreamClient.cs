@@ -184,4 +184,64 @@ public class UpstreamClient
             return await Task.Run(() => adapter!.ReadStream(resp, onChunk, cancellationToken), cancellationToken).ConfigureAwait(false);
         }
     }
+
+    /// <summary>
+    /// 原样把请求体转发到上游的指定相对路径并取回完整响应体（用于 ollama 模式供应商的 /v1/chat/completions 透传）。
+    /// 真实 Ollama 原生支持 OpenAI 兼容的 /v1/chat/completions，本代理仅做透明中继，不做协议转换。
+    /// </summary>
+    /// <param name="provider">供应商配置（提供 BaseUrl）。</param>
+    /// <param name="relativePath">上游相对路径，如 /v1/chat/completions。</param>
+    /// <param name="requestBody">原始请求体（OpenAI JSON）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>上游完整响应文本（调用方负责原样中继）。</returns>
+    public virtual async Task<String> RelayAsync(ProviderOptions provider, String relativePath, String requestBody, CancellationToken cancellationToken)
+    {
+        if (provider == null) throw new ArgumentNullException(nameof(provider));
+        if (String.IsNullOrEmpty(requestBody)) throw new ArgumentException("请求体为空", nameof(requestBody));
+
+        var baseUrl = (provider.BaseUrl ?? "").TrimEnd('/');
+        if (String.IsNullOrEmpty(baseUrl))
+            throw HubException.BadGateway($"供应商 {provider.Id} 未配置 BaseUrl");
+
+        var url = baseUrl + relativePath;
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+        req.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
+        req.Content.Headers.Remove("Content-Type");
+        req.Content.Headers.Add("Content-Type", "application/json");
+
+        foreach (var h in provider.Headers)
+        {
+            if (String.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)) continue;
+            if (String.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase)) continue;
+            req.Headers.TryAddWithoutValidation(h.Key, h.Value);
+        }
+
+        XTrace.WriteLine("→ 上游(透传) {0} {1}", provider.Id, url);
+
+        HttpResponseMessage resp;
+        try
+        {
+            resp = await _http.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw HubException.BadGateway($"上游 {provider.Id} 请求超时");
+        }
+        catch (HttpRequestException ex)
+        {
+            throw HubException.BadGateway($"上游 {provider.Id} 连接失败：{ex.Message}", ex);
+        }
+
+        using (resp)
+        {
+            var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var code = (Int32)resp.StatusCode;
+                XTrace.WriteLine("← 上游(透传) {0} 返回 {1}：{2}", provider.Id, code, body);
+                throw HubException.BadGateway($"上游 {provider.Id} 返回 {code}：{body}");
+            }
+            return body;
+        }
+    }
 }
