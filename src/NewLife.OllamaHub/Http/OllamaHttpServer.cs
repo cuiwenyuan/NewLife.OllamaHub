@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using NewLife.Data;
 using NewLife.Http;
@@ -37,6 +38,15 @@ public class OllamaHttpServer
     /// <summary>当前实际绑定的监听地址（如 http://127.0.0.1:11434）。</summary>
     private String _boundUrl = "";
 
+    /// <summary>可选的 HTTPS（TLS）监听实例，仅当 settings.json 配置了 HttpsPort&gt;0 且证书有效时存在。</summary>
+    private HttpServer? _httpsServer;
+
+    /// <summary>当前 HTTPS 监听实际绑定的端口（0 表示未启用）。</summary>
+    private Int32 _httpsBoundPort;
+
+    /// <summary>当前 HTTPS 监听所用证书路径（用于热重载时判断证书是否变更）。</summary>
+    private String? _httpsCertPath;
+
     /// <summary>对外监听地址（如 http://127.0.0.1:11434）。</summary>
     public String ListenUrl { get; private set; } = "";
 
@@ -57,6 +67,9 @@ public class OllamaHttpServer
 
         // 先起监听，再挂热重载监视（避免监视器先于服务就绪触发无意义回调）
         StartListener(_settings.Url);
+
+        // 可选 HTTPS 监听（VS / 局域网非 localhost 场景需要 TLS）
+        StartHttpsListener();
 
         // M4/M6 热重载：监视 settings.json，变更后立即重载注册表；
         // 若仅模型/供应商/密钥/聚合变更则即时生效，若监听地址（host/port）变更则重建监听套接字，
@@ -107,6 +120,104 @@ public class OllamaHttpServer
         try { _server?.Stop("配置热重载：重建监听地址"); }
         catch (Exception ex) { XTrace.WriteException(ex); }
         _server = null;
+        StopHttpsListener();
+    }
+
+    /// <summary>
+    /// 按需启动可选的 HTTPS（TLS）监听：仅当 <c>HttpsPort&gt;0</c> 且证书可加载时生效。
+    /// 该监听固定绑定 0.0.0.0（面向局域网），并复用与主监听相同的路由表。
+    /// VS / VS Code 的 Copilot 对非 localhost 地址强制要求 HTTPS，因此这是局域网接入的唯一正式途径。
+    /// </summary>
+    private void StartHttpsListener()
+    {
+        var port = _settings.HttpsPort;
+        if (port <= 0) return;
+
+        if (String.IsNullOrEmpty(_settings.Certificate))
+        {
+            XTrace.WriteLine("[HTTPS] 已配置 HttpsPort={0} 但缺少 Certificate，跳过 HTTPS 监听。", port);
+            return;
+        }
+        var certPath = ResolveCertPath(_settings.Certificate);
+        if (!File.Exists(certPath))
+        {
+            XTrace.WriteLine("[HTTPS] 证书文件不存在：{0}，跳过 HTTPS 监听。", certPath);
+            return;
+        }
+
+        X509Certificate2 cert;
+        try
+        {
+            cert = new X509Certificate2(certPath, _settings.CertPassword ?? "", X509KeyStorageFlags.Exportable);
+        }
+        catch (Exception ex)
+        {
+            XTrace.WriteException(ex);
+            XTrace.WriteLine("[HTTPS] 加载证书失败（路径={0}），跳过 HTTPS 监听。", certPath);
+            return;
+        }
+
+        // HTTPS 面向局域网，固定绑 0.0.0.0；本服务无鉴权且持有上游 API Key，给出安全告警
+        var server = new HttpServer
+        {
+            ServerName = "NewLife.OllamaHub",
+            Port = port,
+            Local = new NetUri(NetType.Tcp, IPAddress.Any, port),
+            AddressFamily = AddressFamily.InterNetwork,
+            Certificate = cert,
+        };
+
+        XTrace.WriteLine("[安全告警] 正在监听 HTTPS 非回环地址 0.0.0.0:{0}，本服务无鉴权且持有上游 API Key，请确保处于可信网络。", port);
+
+        BindRoutes(server);
+        server.Start();
+        _httpsServer = server;
+        _httpsBoundPort = port;
+        _httpsCertPath = certPath;
+        XTrace.WriteLine("NewLife.OllamaHub HTTPS 已启动，监听 https://0.0.0.0:{0}", port);
+    }
+
+    /// <summary>停止并释放 HTTPS 监听套接字（若存在）。</summary>
+    private void StopHttpsListener()
+    {
+        try { _httpsServer?.Stop("配置热重载：重建 HTTPS 监听"); }
+        catch (Exception ex) { XTrace.WriteException(ex); }
+        _httpsServer = null;
+        _httpsBoundPort = 0;
+        _httpsCertPath = null;
+    }
+
+    /// <summary>
+    /// 热重载时重新对账 HTTPS 监听：当 HttpsPort 或证书路径发生变化时，
+    /// 停止旧监听并按最新配置重启（无需重启进程）。
+    /// </summary>
+    private void ReconcileHttps()
+    {
+        var port = _settings.HttpsPort;
+        var certPath = String.IsNullOrEmpty(_settings.Certificate) ? null : ResolveCertPath(_settings.Certificate);
+
+        var portChanged = port != _httpsBoundPort;
+        var certChanged = !String.Equals(certPath, _httpsCertPath, StringComparison.OrdinalIgnoreCase);
+        if (!portChanged && !certChanged) return;
+
+        XTrace.WriteLine("[配置热重载] 检测到 HTTPS 配置变更（port {0}→{1}），正在重建 HTTPS 监听…", _httpsBoundPort, port);
+        StopHttpsListener();
+        try
+        {
+            StartHttpsListener();
+            XTrace.WriteLine("[配置热重载] HTTPS 监听已切换，无需重启进程。");
+        }
+        catch (Exception ex)
+        {
+            XTrace.WriteException(ex);
+            XTrace.WriteLine("[配置热重载] HTTPS 新配置启动失败：{0}。已回退为不启用 HTTPS。", ex.Message);
+        }
+    }
+
+    /// <summary>把证书相对路径解析为绝对路径（相对 settings.json 所在目录，即程序基目录）。</summary>
+    private static String ResolveCertPath(String cert)
+    {
+        return Path.IsPathRooted(cert) ? cert : Path.Combine(AppContext.BaseDirectory, cert);
     }
 
     /// <summary>把 Ollama 兼容路由注册到给定 HttpServer（初始启动与重建监听时复用，避免重复声明）。</summary>
@@ -153,6 +264,9 @@ public class OllamaHttpServer
             if (String.IsNullOrEmpty(fresh.Url))
                 fresh.Normalize();
             _settings = fresh;
+
+            // HTTPS 监听对账（端口/证书变化即重建），与是否变更主监听地址无关
+            ReconcileHttps();
 
             var newUrl = fresh.Url;
             if (String.Equals(_boundUrl, newUrl, StringComparison.OrdinalIgnoreCase))
@@ -616,6 +730,8 @@ public class OllamaHttpServer
             ["version"] = typeof(OllamaHttpServer).Assembly.GetName().Version?.ToString() ?? "?",
             ["uptimeSeconds"] = (Int64)(DateTime.UtcNow - _startedAt).TotalSeconds,
             ["listenUrl"] = _settings.Url,
+            ["httpsPort"] = _settings.HttpsPort,
+            ["httpsEnabled"] = _httpsBoundPort > 0,
             ["aggregateLocalOllama"] = _settings.AggregateLocalOllama,
             ["models"] = models.ToArray(),
             ["providers"] = providers.ToArray(),

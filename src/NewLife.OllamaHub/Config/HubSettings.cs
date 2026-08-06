@@ -24,6 +24,23 @@ namespace NewLife.OllamaHub.Config
         /// <summary>监听端口（拆分写法），默认 11434。</summary>
         public Int32 Port { get; set; } = 11434;
 
+        /// <summary>
+        /// HTTPS 监听端口（可选，默认 0 表示不启用）。
+        /// &gt;0 时额外启动一个 TLS 监听，用于 VS / 局域网等非 localhost 场景（VS 强制要求 HTTPS）。
+        /// 该监听固定绑定 0.0.0.0（面向局域网），需配合 <see cref="Certificate"/> 使用。
+        /// </summary>
+        public Int32 HttpsPort { get; set; }
+
+        /// <summary>
+        /// HTTPS 证书（PFX）路径，相对 settings.json 所在目录或绝对路径。
+        /// 仅在 <see cref="HttpsPort"/> &gt; 0 时生效；为空则跳过 HTTPS 监听并告警。
+        /// 证书须被 VS 所在机器信任（自签证书需手动导入受信任根证书）。
+        /// </summary>
+        public String? Certificate { get; set; }
+
+        /// <summary>PFX 证书密码（如有）。</summary>
+        public String? CertPassword { get; set; }
+
         /// <summary>日志配置。</summary>
         public LoggingOptions Logging { get; set; } = new();
 

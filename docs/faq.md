@@ -20,3 +20,6 @@ A：不。仅 `NewLife.Core` + `NewLife.Agent` 两个 NuGet，无 ASP.NET Core�
 
 **Q：Key 安全吗？**
 A：`setkey` 命令用本地 AES-256 加密落盘（机器绑定，密钥由固定应用盐 + 机器名派生，语义等同 DPAPI LocalMachine，且零 NuGet 依赖），也支持 `env:NAME` 环境变量注入。
+
+**Q：VS Copilot 连不上局域网/服务器的地址？**
+A：两点原因：① Hub 默认只绑 `127.0.0.1`，需在 `settings.json` 把 `host` 改为 `0.0.0.0` 才暴露局域网；② **VS 对非 localhost 强制要求 HTTPS**，而 Hub 默认只给明文 HTTP。正式做法是在配置里加 `httpsPort` + `certificate`（PFX）启用原生 HTTPS（详见《配置参考》的 HTTPS 章节）；临时可用 Caddy 反代 + 自签证书。注意 Hub 无鉴权，仅限可信网络使用。详见 Issue #1。

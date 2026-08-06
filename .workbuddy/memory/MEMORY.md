@@ -31,9 +31,21 @@
 - **验证修复确已编入单文件二进制**：管道测菜单不可行（NewLife.Agent 顶层菜单用 `ReadKey` 读序号，stdin 重定向即抛 `Cannot read keys when console input has been redirected`）。改用 Python 以 **UTF-16LE**（`s.encode("utf-16-le")`）在 exe/dll 中检索新增中文文案确认存在。
 - 前台运行用 `--serve`（双横杠；带事件阻塞，stdin 重定向下可靠）。`-run` 经 Agent 需交互控制台，管道模式抛 `ReadKey` 异常。
 - **服务安装无法在本沙箱完成**：`sc`/`wmic`/`reg`/`schtasks` 等系统级工具被安全策略禁用；`exe -i` 在非管理员环境触发 Agent 自动提权→`WindowsService.ExecutablePath` 空值→`UriFormatException` 崩溃。正确安装只能在**用户本机右键 exe → 以管理员身份运行 → 菜单 2（安装服务）**完成（此前已成功）。沙箱内临时运行用 `--serve` 后台进程即可（占 11434，装服务前需先停掉）。
-- 自检 `.exe self-test`：零框架、退出码=失败数，**当前 157/0 全绿**（hermetic，不依赖部署目录 settings.json）。
+- 自检 `.exe self-test`：零框架、退出码=失败数，**当前 168/0 全绿**（hermetic，不依赖部署目录 settings.json）。
 - **exe 版本号 = 构建日期+时间（对齐 NewLife.Agent）**：`NewLife.OllamaHub.csproj` 用 MSBuild 属性在构建期求值，设 `AssemblyVersion=1.0.<距2000-01-01天数>.<自午夜半秒数>`（即 `ax.Version` 显示的 `1.0.NNNNN.xxxxx` 形式）、`FileVersion=1.0.<YYYY>.<MMDD>`（人类可读）。勿改回固定版本（用户 2026-08-05 明确要求日期+时间）。读版本资源可用 `AssemblyName.GetAssemblyName(path).Version` + `FileVersionInfo`（见 `/c/Users/Troy/AppData/Local/Temp/verprobe/`）。
 - 端口：hub 127.0.0.1:11434；mock openai :9099；fake ollama :11435。
+
+## 发布到 GitHub Release
+- 触发：推送 `v*` tag（如 `git tag v1.0.0 && git push origin v1.0.0`）→ `.github/workflows/build.yml` 自动跑 build(self-test 168 项) + publish 单文件 exe + `softprops/action-gh-release@v2` 创建 Release 并附 exe。**无需配 PAT**：用内置 `GITHUB_TOKEN`（`permissions: contents: write` 已在 job 声明）。
+- tag 必须 `v` 开头+数字；Release 标题/说明取自 tag，`generate_release_notes: true` 自动汇总自上次 tag 的 commit。
+- 版本：CI 仅覆盖 `Version=tag`，`AssemblyVersion/FileVersion` 仍走 csproj 的日期+时间编码（沿用用户 2026-08-05 决策）；故发布版 exe 文件版本显示日期时间、Release 标题显示语义版本。若改发布版为语义版本需 workflow 额外传 `-p:AssemblyVersion/-p:FileVersion`。
+
+## LAN/HTTPS 支持（Issue #1，2026-08-06）
+- **根因**：VS/VS Code Copilot 对非 localhost 强制 HTTPS；Hub 默认只绑 127.0.0.1 且仅明文 HTTP。
+- **正式方案=原生 HTTPS**：`HubSettings` 加 `HttpsPort`(>0 启用)/`Certificate`(PFX 路径)/`CertPassword`；`OllamaHttpServer` 额外起一个 TLS 监听（固定绑 `0.0.0.0:<HttpsPort>`，复用主路由），`HttpServer.Certificate` 设 `X509Certificate2`。热重载经 `ReconcileHttps` 对账端口/证书变更。`NewLife.Core.HttpServer` 原生支持 TLS，无第三方依赖。
+- **证书须被 VS 机器信任**（自签需导入受信任根），否则 VS 仍拒连。临时方案：Caddy 反代 `localhost:11434` + 自动 HTTPS（客户端 `caddy trust`）。
+- Hub 无鉴权，暴露局域网=上游 Key 暴露，**仅限可信网络/VPN**。
+- 文档见 `docs/configuration.md`「HTTPS（局域网 / VS Copilot）」+ `docs/faq.md`。
 
 ## 已修 Bug（勿重现）
 - 干净安装 serve 崩溃：`HubSettings.Url=""` 致 `new Uri("")` 抛异常 → `Start()` 与 `Load()` 后均 `Normalize()`；`ServeCommand.Run` 补 `XTrace.UseConsole()`。

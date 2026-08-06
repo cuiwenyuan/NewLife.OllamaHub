@@ -16,6 +16,35 @@
 }
 ```
 
+## HTTPS（局域网 / VS Copilot）
+
+VS / VS Code 的 Copilot 对**非 localhost 地址强制要求 HTTPS**。若要在局域网其它机器上用 VS 连接本 Hub，需要两步：
+
+1. 把 `host` 改为 `0.0.0.0`（或具体局域网 IP）以暴露监听；
+2. 配置一个 HTTPS 端口与证书，由 Hub **原生提供 TLS**（不引入 Caddy/nginx 等任何额外依赖）。
+
+```jsonc
+{
+  "host": "0.0.0.0",
+  "port": 11434,
+  "httpsPort": 11435,                 // 可选：>0 时启用原生 HTTPS 监听（固定绑 0.0.0.0）
+  "certificate": "hub.pfx",          // PFX 路径（相对 settings.json 目录或绝对路径）
+  "certPassword": "证书密码（如有）"
+}
+```
+
+- HTTPS 监听固定绑定 `0.0.0.0:<httpsPort>`，复用与主端口相同的路由（`/api/*`、`/v1/*`、`/admin`）。
+- 证书须为 **PFX** 格式，且**必须被 VS 所在机器信任**：自签证书需手动导入该系统/浏览器的“受信任的根证书颁发机构”，否则 VS 仍会拒绝连接。
+- 生成自签证书（PowerShell）：
+  ```powershell
+  $c = New-SelfSignedCertificate -DnsName "localhost","<服务器IP>" -CertStoreLocation "Cert:\CurrentUser\My"
+  Export-PfxCertificate -Cert $c -FilePath hub.pfx -Password (ConvertTo-SecureString -String "密码" -AsPlainText -Force)
+  ```
+  也可用 `mkcert <服务器IP>` 生成受信任证书（配合下方反向代理方案）。
+- 安全提醒：Hub **不带鉴权**，暴露到局域网即等同把上游 API Key 暴露给同网段任何人。仅限可信网络 / VPN 使用，并妥善保管 Key。
+
+> **临时方案（不想启用原生 HTTPS 时）**：在服务器前置 Caddy（`caddy reverse_proxy localhost:11434` + 自动 HTTPS），VS 填 `https://<服务器IP>:11435`，客户端执行 `caddy trust` 信任其根证书即可。详见 Issue #1。
+
 ## providers[]
 
 | 字段 | 说明 |
