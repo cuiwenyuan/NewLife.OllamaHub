@@ -51,7 +51,7 @@ public class ModelOptions
     /// <summary>模型级默认/强制 top_p。</summary>
     public Double? TopP { get; set; }
 
-    /// <summary>模型级默认/强制 reasoning_effort（OpenAI o-series 等支持；仅 openai 上游生效）。</summary>
+    /// <summary>模型级默认/强制 reasoning effort（OpenAI o-series 等支持；openai/responses 上游生效）。</summary>
     public String? ReasoningEffort { get; set; }
 
     /// <summary>向上游发送时丢弃的参数（如推理模型不接受 temperature/top_p）。</summary>

@@ -23,7 +23,7 @@
 | `id` | 唯一标识，模型通过 `provider` 引用 |
 | `name` | 展示名 |
 | `baseUrl` | 上游 BaseUrl（到 `/v1` 或 `/v1/chat/completions` 之前的部分） |
-| `apiMode` | `openai`（默认）/ `anthropic` / `gemini` / `ollama`（透传 `/api/chat`） |
+| `apiMode` | `openai`（默认）/ `responses` / `anthropic` / `gemini` / `ollama`（透传 `/api/chat`） |
 | `apiKey` | 明文 Key（仅开发；生产请用 `setkey` 加密或环境变量） |
 | `protectedApiKey` | `setkey` 命令写入的 `dpapi:` 本地 AES 密文，或 `env:NAME` 环境变量引用 |
 | `headers` | 固定请求头，**务必含 `Content-Type: application/json`**（避免上游 415） |
@@ -59,6 +59,7 @@ Hub 内置统一适配层，把不同上游响应翻译成 Ollama 兼容帧。�
 | apiMode | 上游协议 | 关键差异（Hub 已自动处理） |
 |---|---|---|
 | `openai` | OpenAI / 兼容 `/chat/completions`（DeepSeek、Qwen、Kimi、GLM、硅基、火山、混元、ModelScope、OpenRouter 等） | 默认模式；请求体为 OpenAI 形状，SSE 块为 `data: {"choices":[...]}` |
+| `responses` | OpenAI Responses API `/responses` | `messages` 转换为 `input` items；函数工具改为扁平结构；`response.output_text.delta` / `response.function_call_arguments.delta` / `response.completed` 转换为统一 OpenAI 流式块 |
 | `anthropic` | Anthropic Messages API `/v1/messages` | `system` 必须顶层字段；鉴权头 `x-api-key` + `anthropic-version: 2023-06-01`；SSE 为 `event: xxx\n data: {...}` 事件块（`message_start`/`content_block_*`/`message_delta`/`message_stop`）；`tool_use` 块 ↔ Ollama `tool_calls`；思考走 `thinking_delta` |
 | `gemini` | Google Gemini `/models/{model}:streamGenerateContent?alt=sse` | API Key 拼在 URL `?key=`；`systemInstruction` 顶层；`functionCall`/`functionResponse` ↔ 工具；`thought:true` 的 part ↦ `reasoning_content`（思考）；SSE 每行为一完整 `GenerateContentResponse` |
 | `ollama` | 真实 Ollama `/api/chat` | 原样透传请求与 NDJSON 响应，用于聚合本机 Ollama |
@@ -70,6 +71,7 @@ Hub 内置统一适配层，把不同上游响应翻译成 Ollama 兼容帧。�
 当请求消息带 `images` 字段（Ollama 原生格式，base64 原文或 `data:image/png;base64,...` URI）时，Hub 会自动转换为对应上游的图像块：
 
 - **openai / 兼容**：`content` 变为数组，插入 `{ "type": "image_url", "image_url": { "url": "data:image/png;base64,..." } }`。
+- **responses**：`content` 变为数组，插入 `{ "type": "input_image", "image_url": "data:image/png;base64,..." }`。
 - **anthropic**：插入 `image` 块，`source: { "type": "base64", "media_type": "image/png", "data": "..." }`。
 - **gemini**：插入 `inline_data: { "mime_type": "image/png", "data": "..." }` 到 `parts`。
 

@@ -344,7 +344,7 @@ public class OllamaHttpServer
 
             if (req.stream)
             {
-                frames.Append(acc.Finalize()).Append('\n');
+                frames.Append(acc.Finalize(includeContent: false)).Append('\n');
                 SetDiagnosticHeaders(ctx, requestedModel, model, provider, provider.ApiMode);
                 WriteRaw(ctx, frames.ToString(), HttpStatusCode.OK);
             }
@@ -406,7 +406,7 @@ public class OllamaHttpServer
 
             if (chat.stream)
             {
-                frames.Append(acc.Finalize()).Append('\n');
+                frames.Append(acc.Finalize(includeContent: false)).Append('\n');
                 WriteRaw(ctx, frames.ToString(), HttpStatusCode.OK);
             }
             else

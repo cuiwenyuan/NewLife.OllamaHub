@@ -31,7 +31,7 @@ Visual Studio / VS Code  Copilot Chat
 │      统一上游适配层 IUpstreamAdapter（按 apiMode 翻译） │
 │                          ↕                    │
 │   ③ UpstreamClient (BCL HttpClient)            │
-│      openai | anthropic | gemini | ollama 透传  │
+│      openai | responses | anthropic | gemini | ollama 透传  │
 │                          ↕                    │
 │   ④ 配置 & 密钥 (settings.json + 本地 AES 密文) │
 │   ⑤ 宿主 NewLife.Agent → Windows 服务         │

@@ -73,9 +73,12 @@ namespace NewLife.OllamaHub.Commands
             // ---- M5：协议转换补强（tool_calls 响应合并） ----
             CheckToolCallsResponseMerge();
 
-            // ---- M6：多模态透传 + Anthropic/Gemini 上游适配器 ----
+            // ---- M6：多模态透传 + Responses/Anthropic/Gemini 上游适配器 ----
             CheckMultimodalOpenAi();
             CheckAdapterFactoryDispatch();
+            CheckResponsesRequestConversion();
+            CheckResponsesStreamTranslation();
+            CheckResponsesNonStream();
             CheckAnthropicStreamTranslation();
             CheckAnthropicNonStream();
             CheckGeminiStreamTranslation();
@@ -365,7 +368,7 @@ namespace NewLife.OllamaHub.Commands
             Assert("forceStream：客户端 true 仍为 stream:true", on.Contains("\"stream\":true"));
         }
 
-        /// <summary>M2：逐块 SSE → 累积 Ollama 帧（done:false → done:true + usage）。</summary>
+        /// <summary>M2：逐块 SSE → 增量 Ollama 帧（done:false → done:true + usage）。</summary>
         private static void CheckStreamTranslation()
         {
             var tr = new OllamaStreamTranslator(new ModelOptions { Id = "m1" }, forGenerate: false);
@@ -554,12 +557,165 @@ namespace NewLife.OllamaHub.Commands
         /// <summary>M6：上游适配器工厂按 ApiMode 正确分发，未知模式回落 openai。</summary>
         private static void CheckAdapterFactoryDispatch()
         {
+            Assert("适配器工厂：responses → Responses 适配器", UpstreamAdapterFactory.Get("responses") is ResponsesUpstreamAdapter);
             Assert("适配器工厂：anthropic → Anthropic 适配器", UpstreamAdapterFactory.Get("anthropic") is AnthropicUpstreamAdapter);
             Assert("适配器工厂：gemini → Gemini 适配器", UpstreamAdapterFactory.Get("gemini") is GeminiUpstreamAdapter);
             Assert("适配器工厂：google → Gemini 适配器", UpstreamAdapterFactory.Get("google") is GeminiUpstreamAdapter);
             Assert("适配器工厂：openai → OpenAI 适配器", UpstreamAdapterFactory.Get("openai") is OpenAiUpstreamAdapter);
             Assert("适配器工厂：空 → OpenAI 适配器", UpstreamAdapterFactory.Get("") is OpenAiUpstreamAdapter);
             Assert("适配器工厂：未知模式回落 openai", UpstreamAdapterFactory.Get("bogus-vendor") is OpenAiUpstreamAdapter);
+        }
+
+        /// <summary>M6：Responses 请求应正确转换 input、图片、工具、工具结果与输出 token 参数。</summary>
+        private static void CheckResponsesRequestConversion()
+        {
+            var req = new OllamaChatRequest
+            {
+                model = "m1",
+                stream = false,
+                options = new Dictionary<String, Object> { ["num_predict"] = 128, ["temperature"] = 0.3 },
+                tools = new List<Object>
+                {
+                    new Dictionary<String, Object?>
+                    {
+                        ["type"] = "function",
+                        ["function"] = new Dictionary<String, Object?>
+                        {
+                            ["name"] = "get_weather",
+                            ["description"] = "查询天气",
+                            ["parameters"] = new Dictionary<String, Object?> { ["type"] = "object" },
+                        },
+                    },
+                },
+            };
+            req.messages.Add(new OllamaMessage
+            {
+                role = "user",
+                content = "看图",
+                images = new List<String> { "data:image/png;base64,AAAA" },
+            });
+            req.messages.Add(new OllamaMessage
+            {
+                role = "assistant",
+                tool_calls = new List<Object>
+                {
+                    new Dictionary<String, Object?>
+                    {
+                        ["id"] = "call_1",
+                        ["type"] = "function",
+                        ["function"] = new Dictionary<String, Object?> { ["name"] = "get_weather", ["arguments"] = "{\"city\":\"广州\"}" },
+                    },
+                },
+            });
+            req.messages.Add(new OllamaMessage { role = "tool", tool_call_id = "call_1", content = "晴" });
+
+            var adapter = new ResponsesUpstreamAdapter();
+            var json = adapter.BuildRequest(req, new ModelOptions { Id = "m1", ReasoningEffort = "medium" }, forceStream: true);
+
+            Assert("Responses 请求：URL 拼接 /responses", adapter.GetRequestUrl(new ProviderOptions { BaseUrl = "https://api.openai.com/v1" }, new ModelOptions()) == "https://api.openai.com/v1/responses");
+            Assert("Responses 请求：使用 input items", json.Contains("\"input\""));
+            Assert("Responses 请求：图片映射 input_image", json.Contains("\"type\":\"input_image\""));
+            Assert("Responses 请求：历史工具调用映射 function_call", json.Contains("\"type\":\"function_call\""));
+            Assert("Responses 请求：工具结果映射 function_call_output", json.Contains("\"type\":\"function_call_output\""));
+            Assert("Responses 请求：max_tokens 映射 max_output_tokens", json.Contains("\"max_output_tokens\":128"));
+            Assert("Responses 请求：工具定义为扁平 name", json.Contains("\"name\":\"get_weather\""));
+            Assert("Responses 请求：reasoning effort 已下发", json.Contains("\"reasoning\":{\"effort\":\"medium\"}"));
+            Assert("Responses 请求：强制上游流式", json.Contains("\"stream\":true"));
+        }
+
+        /// <summary>M6：Responses SSE 应正确翻译文本、推理、工具调用、结束原因和 token 用量。</summary>
+        private static void CheckResponsesStreamTranslation()
+        {
+            var events = new List<Object>
+            {
+                new Dictionary<String, Object?> { ["type"] = "response.output_text.delta", ["delta"] = "Hello" },
+                new Dictionary<String, Object?> { ["type"] = "response.reasoning_summary_text.delta", ["delta"] = "think" },
+                new Dictionary<String, Object?>
+                {
+                    ["type"] = "response.output_item.added",
+                    ["output_index"] = 1,
+                    ["item"] = new Dictionary<String, Object?>
+                    {
+                        ["type"] = "function_call", ["id"] = "fc_1", ["call_id"] = "call_1",
+                        ["name"] = "get_weather", ["arguments"] = "",
+                    },
+                },
+                new Dictionary<String, Object?>
+                {
+                    ["type"] = "response.function_call_arguments.delta", ["item_id"] = "fc_1",
+                    ["output_index"] = 1, ["delta"] = "{\"city\":\"广州\"}",
+                },
+                new Dictionary<String, Object?>
+                {
+                    ["type"] = "response.completed",
+                    ["response"] = new Dictionary<String, Object?>
+                    {
+                        ["status"] = "completed",
+                        ["usage"] = new Dictionary<String, Object?> { ["input_tokens"] = 5, ["output_tokens"] = 9 },
+                    },
+                },
+            };
+            var sse = new StringBuilder();
+            foreach (var item in events)
+            {
+                var type = (item as Dictionary<String, Object?>)?.Val("type")?.ToString() ?? "";
+                sse.Append("event: ").Append(type).Append('\n');
+                sse.Append("data: ").Append(JsonHelper.ToJson(item)).Append("\n\n");
+            }
+
+            using var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(sse.ToString()) };
+            var chunks = new List<String>();
+            new ResponsesUpstreamAdapter().ReadStream(response, chunks.Add, CancellationToken.None);
+            var translator = new OllamaStreamTranslator(new ModelOptions { Id = "m1" }, forGenerate: false);
+            var ollama = String.Join("\n", chunks.Select(translator.Consume)) + translator.Finalize(includeContent: false);
+
+            Assert("Responses 流：文本 Hello 已翻译", ollama.Contains("\"content\":\"Hello\""));
+            Assert("Responses 流：推理摘要映射 thinking", ollama.Contains("\"thinking\":\"think\""));
+            Assert("Responses 流：工具调用 id 透传", ollama.Contains("call_1"));
+            Assert("Responses 流：工具名透传", ollama.Contains("get_weather"));
+            Assert("Responses 流：工具参数增量已合并", ollama.Contains("广州"));
+            Assert("Responses 流：工具调用结束原因", ollama.Contains("\"done_reason\":\"stop\"") && ollama.Contains("\"tool_calls\""));
+            Assert("Responses 流：eval_count 回填", ollama.Contains("\"eval_count\":9"));
+            Assert("Responses 流：prompt_eval_count 回填", ollama.Contains("\"prompt_eval_count\":5"));
+        }
+
+        /// <summary>M6：Responses 非流式 output items 应转换为统一 OpenAI 形状并可继续生成 Ollama 帧。</summary>
+        private static void CheckResponsesNonStream()
+        {
+            var json = JsonHelper.ToJson(new Dictionary<String, Object?>
+            {
+                ["id"] = "resp_1",
+                ["status"] = "completed",
+                ["model"] = "m1",
+                ["output"] = new List<Object?>
+                {
+                    new Dictionary<String, Object?>
+                    {
+                        ["type"] = "reasoning",
+                        ["summary"] = new List<Object?> { new Dictionary<String, Object?> { ["type"] = "summary_text", ["text"] = "分析" } },
+                    },
+                    new Dictionary<String, Object?>
+                    {
+                        ["type"] = "message",
+                        ["content"] = new List<Object?> { new Dictionary<String, Object?> { ["type"] = "output_text", ["text"] = "答案" } },
+                    },
+                    new Dictionary<String, Object?>
+                    {
+                        ["type"] = "function_call", ["id"] = "fc_1", ["call_id"] = "call_1",
+                        ["name"] = "lookup", ["arguments"] = "{\"id\":1}",
+                    },
+                },
+                ["usage"] = new Dictionary<String, Object?> { ["input_tokens"] = 3, ["output_tokens"] = 7 },
+            });
+
+            var oaLike = new ResponsesUpstreamAdapter().ConvertNonStream(json, new ModelOptions { Id = "m1" });
+            var ollama = OpenAiAdapter.ToOllamaNdJson(oaLike, new ModelOptions { Id = "m1" });
+
+            Assert("Responses 非流式：输出文本已转换", ollama.Contains("\"content\":\"答案\""));
+            Assert("Responses 非流式：推理摘要已转换", ollama.Contains("\"thinking\":\"分析\""));
+            Assert("Responses 非流式：工具调用已转换", ollama.Contains("lookup") && ollama.Contains("call_1"));
+            Assert("Responses 非流式：eval_count 回填", ollama.Contains("\"eval_count\":7"));
+            Assert("Responses 非流式：prompt_eval_count 回填", ollama.Contains("\"prompt_eval_count\":3"));
         }
 
         /// <summary>M6：Anthropic SSE（event/data 块）经适配器翻译后，Ollama 帧含文本 / 工具调用 / 用量。</summary>
@@ -586,7 +742,7 @@ namespace NewLife.OllamaHub.Commands
             new AnthropicUpstreamAdapter().ReadStream(resp, frames.Add, CancellationToken.None);
 
             var tr = new OllamaStreamTranslator(new ModelOptions { Id = "m1" }, forGenerate: false);
-            var ollama = String.Join("\n", frames.Select(f => tr.Consume(f))) + tr.Finalize();
+            var ollama = String.Join("\n", frames.Select(f => tr.Consume(f))) + tr.Finalize(includeContent: false);
 
             Assert("Anthropic 流：文本 Hello 已翻译", ollama.Contains("\"content\":\"Hello\""));
             Assert("Anthropic 流：工具调用 id 透传", ollama.Contains("tu_1"));
@@ -668,7 +824,7 @@ namespace NewLife.OllamaHub.Commands
             var frames2 = new List<String>();
             new GeminiUpstreamAdapter().ReadStream(respThink, frames2.Add, CancellationToken.None);
             var tr2 = new OllamaStreamTranslator(new ModelOptions { Id = "m1" }, forGenerate: false);
-            var ollamaThink = String.Join("\n", frames2.Select(f => tr2.Consume(f))) + tr2.Finalize();
+            var ollamaThink = String.Join("\n", frames2.Select(f => tr2.Consume(f))) + tr2.Finalize(includeContent: false);
             Assert("Gemini 流：思考过程映射为 thinking", ollamaThink.Contains("\"thinking\":\"hmm\""));
             Assert("Gemini 流：正文 ans", ollamaThink.Contains("\"content\":\"ans\""));
         }

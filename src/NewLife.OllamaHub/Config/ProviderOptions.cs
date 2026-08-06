@@ -14,7 +14,7 @@ public class ProviderOptions
     /// <summary>上游 BaseUrl，例如 https://api.deepseek.com/v1 。</summary>
     public String BaseUrl { get; set; } = "";
 
-    /// <summary>协议模式：openai（默认）/ ollama（透传 /api/chat）。</summary>
+    /// <summary>协议模式：openai（默认）/ responses / anthropic / gemini / ollama。</summary>
     public String ApiMode { get; set; } = "openai";
 
     /// <summary>API Key 明文（仅开发用，生产请用 ProtectedApiKey 或环境变量）。</summary>

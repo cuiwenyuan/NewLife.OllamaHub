@@ -8,7 +8,7 @@ using NewLife.Serialization;
 namespace NewLife.OllamaHub.Core;
 
 /// <summary>
-/// 上游协议适配器接口（M6：支持 openai / anthropic / gemini 等多种上游）。
+/// 上游协议适配器接口（M6：支持 openai / responses / anthropic / gemini 等多种上游）。
 /// 设计要点——所有适配器都把"自家上游的 SSE 块 / 非流式响应"翻译成统一的
 /// <b>OpenAI 形状</b>，再交给既有的 <see cref="OllamaStreamTranslator"/>（专吃 OpenAI 块）
 /// 与 <see cref="OpenAiAdapter"/> 的 NDJSON 转换逻辑，从而避免为每种上游各写一套流式累积。
@@ -16,7 +16,7 @@ namespace NewLife.OllamaHub.Core;
 /// </summary>
 public interface IUpstreamAdapter
 {
-    /// <summary>协议模式标识（与 ProviderOptions.ApiMode 对应，如 openai / anthropic / gemini）。</summary>
+    /// <summary>协议模式标识（与 ProviderOptions.ApiMode 对应，如 openai / responses / anthropic / gemini）。</summary>
     String ApiMode { get; }
 
     /// <summary>把 Ollama /api/chat 请求转换为该上游的请求体 JSON。</summary>
@@ -53,6 +53,7 @@ public static class UpstreamAdapterFactory
     private static readonly Dictionary<String, IUpstreamAdapter> _map = new(StringComparer.OrdinalIgnoreCase)
     {
         ["openai"] = new OpenAiUpstreamAdapter(),
+        ["responses"] = new ResponsesUpstreamAdapter(),
         ["anthropic"] = new AnthropicUpstreamAdapter(),
         ["gemini"] = new GeminiUpstreamAdapter(),
         ["google"] = new GeminiUpstreamAdapter(),
