@@ -13,8 +13,10 @@
 - **工具**：`ToolSchemaSanitizer.Sanitize` 递归删 `$schema`/`definitions`/`$defs`/`title`/`examples`/`additionalProperties`/`x-*`。
 
 ## 配置与热重载（勿回退）
-- `Core/ConfigWatcher.cs` 监视 `settings.json`（500ms 去抖）→ `ModelRegistry.Instance.Load()`。模型/供应商/密钥/聚合开关即时生效；仅 `host`/`port` 监听地址变更**已支持热重建套接字**（`OllamaHttpServer.StartListener/StopListener`，失败回退旧端口）。
-- `ModelRegistry.Load()` 整体替换 `Settings` 对象（非原地 mutate），读取方须以 `ModelRegistry.Instance.Settings` 为权威来源、`_boundUrl` 比对实际绑定地址。
+- `Core/ConfigWatcher.cs` 监视 `settings.json`（500ms 去抖）→ `ModelRegistry.Instance.Load()`。模型/供应商/密钥/聚合开关即时生效；监听地址变更**已支持热重建套接字**，按 `ReconcileListeners()` 逐监听对账（enabled/地址/证书），失败回退原状态。
+- **双监听结构（2026-08-06 重构，已确认不保留旧字段兼容）**：`HubSettings` 暴露两个独立节点 `Local`（明文 HTTP，默认 `enabled:true`/`host:127.0.0.1`/`port:11434`）+ `LanHttps`（TLS，默认 `enabled:false`/`host:0.0.0.0`/`port:11435`/`certificate`/`certPassword`）。旧 `url`/`host`/`port`/`httpsPort`/`certificate`/`certPassword` 顶层字段**已删除**，`Normalize()` 改为归一化两个子对象（派生 `Local.Url`），`ProviderPresets` 默认构造改为无参 `new HubSettings()`。
+- `OllamaHttpServer` 两个独立 `HttpServer` 实例并存：`_localServer`(按 `Local.Url`) + `_httpsServer`(按 `LanHttps`，证书缺失则告警跳过)；`StartListenerInner` 通用方法按 `listener.UseTls` 决定 HTTP/HTTPS；`HandleStatus` 输出 `listeners[]`（每项含 `name`/`scheme`/`enabled`/`url`/`host`/`port`/`bound`），**不再有单一 `listenUrl`/`httpsPort`/`httpsEnabled`**。
+- `ModelRegistry.Load()` 整体替换 `Settings` 对象（非原地 mutate），读取方须以 `ModelRegistry.Instance.Settings` 为权威来源。
 - `SecretProtector` 实为 BCL `AES-256-CBC` 机器绑定（盐 `NewLife.OllamaHub::v1::`+MachineName），非 Windows DPAPI；解析优先级 明文 > `env:NAME` > `dpapi:<base64>` > 明文。
 
 ## 供应商预设与模型名（重要教训）
@@ -28,24 +30,27 @@
 ## 构建 / 测试约定
 - 构建 `dotnet build -c Release`；发布 `dotnet publish -c Release -r win-x64 -o <dir>`（单文件）。**运行中实例会锁 exe**：publish 前先 `taskkill /F /IM NewLife.OllamaHub.exe`。
 - **publish 被锁（MSB3491/MSB3021 Access denied）的沙箱修复顺序**：① 先 `dotnet build-server shutdown` 关掉遗留 Roslyn/VBCSCompiler+MSBuild 服务器（它们持有 `obj/.../PublishOutputs.*.txt` 与 `genbundle.cache`）；② 再用 `rm -f` 删除发布目录里被占的 `*.xml`/`*.pdb`/`*.exe` 等具体文件（**勿用 `rm -rf` 整目录**，超 50 文件会被安全阈值拦截）。`taskkill` 在本沙箱属 LOLBin 被禁用，不要在发布流程里依赖它。
+- **服务实例锁（2026-08-06 实战）**：若发布目标目录被**以 Windows 服务运行的实例**锁住（进程位于 Session 0，普通 `Stop-Process`/`taskkill` 均「拒绝访问」，且 `sc`/`net stop` 被沙箱安全策略禁用），沙箱内**无法结束**该进程，必须请用户在**本机以管理员**停止/卸载服务 `NewLife.OllamaHub`（`Stop-Service NewLife.OllamaHub` 或 `sc stop "NewLife.OllamaHub"`，或「服务」管理器），之后才能 `dotnet publish -o <dir>` 覆盖。
 - **验证修复确已编入单文件二进制**：管道测菜单不可行（NewLife.Agent 顶层菜单用 `ReadKey` 读序号，stdin 重定向即抛 `Cannot read keys when console input has been redirected`）。改用 Python 以 **UTF-16LE**（`s.encode("utf-16-le")`）在 exe/dll 中检索新增中文文案确认存在。
 - 前台运行用 `--serve`（双横杠；带事件阻塞，stdin 重定向下可靠）。`-run` 经 Agent 需交互控制台，管道模式抛 `ReadKey` 异常。
 - **服务安装无法在本沙箱完成**：`sc`/`wmic`/`reg`/`schtasks` 等系统级工具被安全策略禁用；`exe -i` 在非管理员环境触发 Agent 自动提权→`WindowsService.ExecutablePath` 空值→`UriFormatException` 崩溃。正确安装只能在**用户本机右键 exe → 以管理员身份运行 → 菜单 2（安装服务）**完成（此前已成功）。沙箱内临时运行用 `--serve` 后台进程即可（占 11434，装服务前需先停掉）。
-- 自检 `.exe self-test`：零框架、退出码=失败数，**当前 168/0 全绿**（hermetic，不依赖部署目录 settings.json）。
+- 自检 `.exe self-test`：零框架、退出码=失败数，**当前 171/0 全绿**（hermetic，不依赖部署目录 settings.json）。
 - **exe 版本号 = 构建日期+时间（对齐 NewLife.Agent）**：`NewLife.OllamaHub.csproj` 用 MSBuild 属性在构建期求值，设 `AssemblyVersion=1.0.<距2000-01-01天数>.<自午夜半秒数>`（即 `ax.Version` 显示的 `1.0.NNNNN.xxxxx` 形式）、`FileVersion=1.0.<YYYY>.<MMDD>`（人类可读）。勿改回固定版本（用户 2026-08-05 明确要求日期+时间）。读版本资源可用 `AssemblyName.GetAssemblyName(path).Version` + `FileVersionInfo`（见 `/c/Users/Troy/AppData/Local/Temp/verprobe/`）。
 - 端口：hub 127.0.0.1:11434；mock openai :9099；fake ollama :11435。
 
 ## 发布到 GitHub Release
-- 触发：推送 `v*` tag（如 `git tag v1.0.0 && git push origin v1.0.0`）→ `.github/workflows/build.yml` 自动跑 build(self-test 168 项) + publish 单文件 exe + `softprops/action-gh-release@v2` 创建 Release 并附 exe。**无需配 PAT**：用内置 `GITHUB_TOKEN`（`permissions: contents: write` 已在 job 声明）。
+- 触发：推送 `v*` tag（如 `git tag v1.0.0 && git push origin v1.0.0`）→ `.github/workflows/build.yml` 自动跑 build(self-test 171 项) + publish 单文件 exe + `softprops/action-gh-release@v2` 创建 Release 并附 exe。**无需配 PAT**：用内置 `GITHUB_TOKEN`（`permissions: contents: write` 已在 job 声明）。
 - tag 必须 `v` 开头+数字；Release 标题/说明取自 tag，`generate_release_notes: true` 自动汇总自上次 tag 的 commit。
 - 版本：CI 仅覆盖 `Version=tag`，`AssemblyVersion/FileVersion` 仍走 csproj 的日期+时间编码（沿用用户 2026-08-05 决策）；故发布版 exe 文件版本显示日期时间、Release 标题显示语义版本。若改发布版为语义版本需 workflow 额外传 `-p:AssemblyVersion/-p:FileVersion`。
 
 ## LAN/HTTPS 支持（Issue #1，2026-08-06）
 - **根因**：VS/VS Code Copilot 对非 localhost 强制 HTTPS；Hub 默认只绑 127.0.0.1 且仅明文 HTTP。
-- **正式方案=原生 HTTPS**：`HubSettings` 加 `HttpsPort`(>0 启用)/`Certificate`(PFX 路径)/`CertPassword`；`OllamaHttpServer` 额外起一个 TLS 监听（固定绑 `0.0.0.0:<HttpsPort>`，复用主路由），`HttpServer.Certificate` 设 `X509Certificate2`。热重载经 `ReconcileHttps` 对账端口/证书变更。`NewLife.Core.HttpServer` 原生支持 TLS，无第三方依赖。
+- **正式方案=双监听节点独立化（原生 HTTPS）**：`settings.json` 两个独立节点 `local`（明文 HTTP，本机用，`enabled` 默认 `true`）+ `lanHttps`（TLS，局域网用，`enabled` 默认 `false`，`host` 默认 `0.0.0.0`/`port` 默认 `11435`/`certificate`(PFX)/`certPassword`）。两者**运行时并存**（已 e2e 验证：仅 local / 仅 lanHttps / 两者并存 / 热重载改 `enabled` 不重启即生效）。
+- `OllamaHttpServer` 两个 `HttpServer` 实例：`_localServer`(按 `Local.Url`) + `_httpsServer`(按 `LanHttps`，证书缺失则告警跳过)；`HttpServer.Certificate` 设 `X509Certificate2`。`NewLife.Core.HttpServer` 原生支持 TLS，无第三方依赖。
 - **证书须被 VS 机器信任**（自签需导入受信任根），否则 VS 仍拒连。临时方案：Caddy 反代 `localhost:11434` + 自动 HTTPS（客户端 `caddy trust`）。
 - Hub 无鉴权，暴露局域网=上游 Key 暴露，**仅限可信网络/VPN**。
-- 文档见 `docs/configuration.md`「HTTPS（局域网 / VS Copilot）」+ `docs/faq.md`。
+- 文档见 `docs/configuration.md`「本地与局域网监听（双节点）」+ `docs/faq.md`（「VS Copilot 连不上局域网？」已同步）。示例 `examples/*.json` 已更新为 `local` 节点。
+- **self-test 新增 3 项 schema 测试**（CheckSettingsSchema 改测新结构）：当前 **171/0 全绿**。
 
 ## 已修 Bug（勿重现）
 - 干净安装 serve 崩溃：`HubSettings.Url=""` 致 `new Uri("")` 抛异常 → `Start()` 与 `Load()` 后均 `Normalize()`；`ServeCommand.Run` 补 `XTrace.UseConsole()`。
@@ -59,6 +64,7 @@
 - **状态（2026-08-05 更新）**：`github.com:443` 为**间歇性** SNI 阻断（非永久）。当日上午实测恢复（200，0.4s），普通 `git push`/`pull`/`ls-remote` 均正常（已验证 `ls-remote` 返回 `main -> 2b0c4be` 与本地一致）。
 - 阻断复现时（`curl --max-time 10 https://github.com` 超时）仍可走 **`api.github.com` 的 Git Data API** 重建对象推送：用 `git credential fill` 取本机已存 token；`git cat-file blob/commit` 读**索引字节**（勿读工作区，autocrlf 致 CRLF 偏差）；`blobs → trees(base_tree) → commits → PATCH refs/heads/main`；精确复制 message 与时间戳使远端 SHA 与本地字节级一致；最后 `git update-ref refs/remotes/origin/main <sha>` 同步跟踪引用。
 - Fine-grained PAT 已存入 git credential store（`username=cuiwenyuan`），可直接用于 HTTPS 推送，无需 SSH。
+- **2026-08-06 实战补充**：`api.github.com` 同样会被间歇 SNI 阻断（TLS 握手 `UNEXPECTED_EOF_WHILE_READING`）；Python `urllib` 直连 `api.github.com` 会被拦，但**系统 `curl` 子进程的 TLS 握手能通过**（指纹差异）。Git Data API 推送脚本务必用 `curl` 子进程（非 urllib），且把请求 body 写**临时文件**用 `--data @file` 传入——否则大 blob 的 base64 会触发 Windows `WinError 206` 命令行过长。每次推送**先试常规 `git push origin main`**，网络恢复瞬间即成功（本次即如此）。
 
 ## 文档索引
 - `docs/README.md`（索引）、`architecture.md`、`configuration.md`、`providers.md`（11 家 BaseUrl+模型）、`security.md`、`install-as-service.md`（可视化安装）、`vs-setup.md`（VS Copilot 接入，含 5 张截图）、`upgrade.md`、`troubleshooting.md`、`faq.md`。

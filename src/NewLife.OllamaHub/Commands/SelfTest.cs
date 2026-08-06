@@ -696,7 +696,7 @@ namespace NewLife.OllamaHub.Commands
 
         // ---- 断言工具 ----
 
-        /// <summary>M3：HubSettings 兼容 host/port 写法（推导 Url）且 Save/Load 往返保留供应商。</summary>
+        /// <summary>M3：HubSettings 采用 local/lanHttps 双监听结构，Save/Load 往返保留供应商。</summary>
         private static void CheckSettingsSchema()
         {
             var dir = Path.Combine(Path.GetTempPath(), "ollamahub_cfg_" + Guid.NewGuid().ToString("N"));
@@ -704,9 +704,12 @@ namespace NewLife.OllamaHub.Commands
             try
             {
                 var file = Path.Combine(dir, "settings.json");
-                File.WriteAllText(file, "{\"host\":\"127.0.0.1\",\"port\":12345,\"providers\":[{\"id\":\"p1\",\"baseUrl\":\"https://x\"}],\"models\":[{\"id\":\"m1\",\"provider\":\"p1\"}]}");
+                File.WriteAllText(file, "{\"local\":{\"enabled\":true,\"host\":\"127.0.0.1\",\"port\":12345},\"providers\":[{\"id\":\"p1\",\"baseUrl\":\"https://x\"}],\"models\":[{\"id\":\"m1\",\"provider\":\"p1\"}]}");
                 var s = HubSettings.Load(file);
-                Assert("配置 schema：host/port 推导出 Url", s.Url == "http://127.0.0.1:12345");
+                Assert("配置 schema：local 节点解析 host/port", s.Local.Host == "127.0.0.1" && s.Local.Port == 12345);
+                Assert("配置 schema：local 默认启用", s.Local.Enabled);
+                Assert("配置 schema：lanHttps 默认禁用", !s.LanHttps.Enabled);
+                Assert("配置 schema：local 推导 URL", s.Local.ResolveUrl("http") == "http://127.0.0.1:12345");
 
                 // 往返：写入后再读回，供应商/模型不丢
                 s.Providers.Add(new ProviderOptions { Id = "p2", BaseUrl = "https://y" });

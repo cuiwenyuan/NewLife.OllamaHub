@@ -21,6 +21,7 @@ public static class OpenAiAdapter
     /// <summary>把 Ollama 聊天请求转换为 OpenAI 请求体 JSON。</summary>
     /// <param name="req">Ollama /api/chat 请求（不可为 null）。</param>
     /// <param name="model">模型配置（用于取上游 model 名与 dropParams）。</param>
+    /// <param name="forceStream">强制在请求体写入 stream:true（流式桥接场景，忽略客户端原始设置）。</param>
     /// <returns>可直接 POST 给上游 /v1/chat/completions 的 JSON 字符串。</returns>
     public static String BuildOpenAiRequest(OllamaChatRequest req, ModelOptions model, Boolean forceStream = false)
     {

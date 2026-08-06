@@ -40,7 +40,11 @@ public class HubAgentService : ServiceBase
         var settings = ModelRegistry.Instance.Settings;
         _server = new OllamaHttpServer(settings);
         _server.Start();
-        XTrace.WriteLine("NewLife.OllamaHub 已启动，监听 {0}", _server.ListenUrl);
+        XTrace.WriteLine("NewLife.OllamaHub 已启动：本地 HTTP {0}（{1}），局域网 HTTPS {2}（{3}）",
+            settings.Local.Enabled ? settings.Local.ResolveUrl("http") : "未启用",
+            settings.Local.Enabled ? "启用" : "禁用",
+            settings.LanHttps.Enabled ? settings.LanHttps.ResolveUrl("https") : "未启用",
+            settings.LanHttps.Enabled ? "启用" : "禁用");
     }
 
     /// <summary>服务停止：释放 HTTP 服务并清空引用。</summary>

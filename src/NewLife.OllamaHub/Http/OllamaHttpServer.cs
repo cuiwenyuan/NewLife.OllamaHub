@@ -27,7 +27,6 @@ namespace NewLife.OllamaHub.Http;
 public class OllamaHttpServer
 {
     private HubSettings _settings;
-    private HttpServer? _server;
     private readonly UpstreamClient _upstream = new();
     private DateTime _startedAt = DateTime.UtcNow;
     private ConfigWatcher? _watcher;
@@ -35,183 +34,158 @@ public class OllamaHttpServer
     /// <summary>重建监听套接字时的重入锁，避免文件变更去抖回调与 Stop 并发。</summary>
     private readonly Object _reloadLock = new();
 
-    /// <summary>当前实际绑定的监听地址（如 http://127.0.0.1:11434）。</summary>
-    private String _boundUrl = "";
+    /// <summary>本地 HTTP 监听（明文，本机用）。null 表示未启用或启动失败。</summary>
+    private BoundListener? _local;
 
-    /// <summary>可选的 HTTPS（TLS）监听实例，仅当 settings.json 配置了 HttpsPort&gt;0 且证书有效时存在。</summary>
-    private HttpServer? _httpsServer;
+    /// <summary>局域网 HTTPS 监听（TLS）。null 表示未启用或启动失败。</summary>
+    private BoundListener? _https;
 
-    /// <summary>当前 HTTPS 监听实际绑定的端口（0 表示未启用）。</summary>
-    private Int32 _httpsBoundPort;
-
-    /// <summary>当前 HTTPS 监听所用证书路径（用于热重载时判断证书是否变更）。</summary>
-    private String? _httpsCertPath;
-
-    /// <summary>对外监听地址（如 http://127.0.0.1:11434）。</summary>
-    public String ListenUrl { get; private set; } = "";
+    /// <summary>单个监听的运行态记录（用于热重载对账）。</summary>
+    private sealed class BoundListener
+    {
+        public HttpServer? Server;
+        public String Scheme = "http";
+        public String Host = "127.0.0.1";
+        public Int32 Port;
+        public String? CertPath;
+    }
 
     /// <summary>构造服务封装。</summary>
     /// <param name="settings">全局配置（不可为 null）。</param>
     public OllamaHttpServer(HubSettings settings)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-        ListenUrl = _settings.Url ?? "";
     }
 
-    /// <summary>启动 HTTP 服务并注册 Ollama 路由。</summary>
+    /// <summary>启动 HTTP / HTTPS 服务并注册 Ollama 路由。本地 HTTP 与局域网 HTTPS 可同时在线。</summary>
     public void Start()
     {
-        // 无 settings.json 时默认 HubSettings.Url 为空，须由 host/port 推导出监听地址
-        if (String.IsNullOrEmpty(_settings.Url))
-            _settings.Normalize();
+        // 防御：确保两个监听节点非空、端口有效（无 settings.json 时取默认）
+        _settings.Normalize();
 
         // 先起监听，再挂热重载监视（避免监视器先于服务就绪触发无意义回调）
-        StartListener(_settings.Url);
-
-        // 可选 HTTPS 监听（VS / 局域网非 localhost 场景需要 TLS）
-        StartHttpsListener();
+        _local = StartListener(_settings.Local, "http", null);
+        _https = StartListener(_settings.LanHttps, "https", _settings.LanHttps.Certificate);
 
         // M4/M6 热重载：监视 settings.json，变更后立即重载注册表；
-        // 若仅模型/供应商/密钥/聚合变更则即时生效，若监听地址（host/port）变更则重建监听套接字，
+        // 若仅模型/供应商/密钥/聚合变更则即时生效，若监听配置变更则重建对应监听套接字，
         // 二者均无需重启进程。
         _watcher = new ConfigWatcher(Path.Combine(AppContext.BaseDirectory, "settings.json"), OnConfigChanged);
         _watcher.Start();
     }
 
-    /// <summary>在给定监听地址上创建并启动一个新的 HttpServer（绑定 Ollama 路由）。</summary>
-    /// <param name="url">监听地址（如 http://127.0.0.1:11434）。</param>
-    private void StartListener(String url)
+    /// <summary>
+    /// 按给定监听节点创建一个 HttpServer 并启动（绑定 Ollama 路由）。
+    /// HTTPS 节点会加载 PFX 证书；证书缺失/无效则跳过该监听并返回 null。
+    /// 仅当启动成功后才返回 <see cref="BoundListener"/>，避免半初始化实例残留。
+    /// </summary>
+    /// <param name="opts">监听节点配置（Enabled/Host/Port/Certificate）。</param>
+    /// <param name="scheme">http 或 https。</param>
+    /// <param name="certRelative">证书相对路径（仅 https 使用，可为 null）。</param>
+    /// <returns>运行态记录；未启用或启动失败时返回 null。</returns>
+    private BoundListener? StartListener(HttpListenerOptions opts, String scheme, String? certRelative)
     {
-        var uri = new Uri(url);
-        var address = ResolveBindAddress(uri.Host);
+        if (opts == null || !opts.Enabled || opts.Port <= 0) return null;
+
+        var address = ResolveBindAddress(opts.Host);
 
         var server = new HttpServer
         {
             ServerName = "NewLife.OllamaHub",
-            Port = uri.Port,
+            Port = opts.Port,
 
             // 必须显式指定 Local，否则 NetServer 会绑定 0.0.0.0 + [::] 全部网卡。
             // 本进程持有付费大模型的 API Key 且不做鉴权，暴露到局域网等同于泄露密钥，
             // 因此默认只监听回环地址（与真实 Ollama 行为一致）。
-            Local = new NetUri(NetType.Tcp, address, uri.Port),
+            Local = new NetUri(NetType.Tcp, address, opts.Port),
 
             // 限定 IPv4，避免额外再创建一个 IPv6 监听套接字
             AddressFamily = AddressFamily.InterNetwork,
         };
 
+        // HTTPS：加载证书（缺失/异常则跳过该监听）
+        String? resolvedCert = null;
+        if (scheme == "https")
+        {
+            if (String.IsNullOrEmpty(certRelative))
+            {
+                XTrace.WriteLine("[HTTPS] LanHttps.Enabled=true 但缺少 Certificate，跳过 HTTPS 监听。");
+                return null;
+            }
+            resolvedCert = ResolveCertPath(certRelative!);
+            if (!File.Exists(resolvedCert))
+            {
+                XTrace.WriteLine("[HTTPS] 证书文件不存在：{0}，跳过 HTTPS 监听。", resolvedCert);
+                return null;
+            }
+            try
+            {
+                server.Certificate = new X509Certificate2(resolvedCert, opts.CertPassword ?? "", X509KeyStorageFlags.Exportable);
+            }
+            catch (Exception ex)
+            {
+                XTrace.WriteException(ex);
+                XTrace.WriteLine("[HTTPS] 加载证书失败（路径={0}），跳过 HTTPS 监听。", resolvedCert);
+                return null;
+            }
+        }
+
         // 显式配置为非回环时给出告警：这是有意为之还是配置失误，用户需要知情
         if (!IPAddress.IsLoopback(address))
-            XTrace.WriteLine("[安全告警] 正在监听非回环地址 {0}，本服务无鉴权且持有上游 API Key，请确保处于可信网络。", address);
+            XTrace.WriteLine("[安全告警] 正在监听非回环地址 {0}（{1}），本服务无鉴权且持有上游 API Key，请确保处于可信网络。", address, scheme);
 
         BindRoutes(server);
 
-        // 仅当启动成功后才提交到 _server，避免半初始化的实例残留导致后续重建/停止出错
-        server.Start();
-        _server = server;
-        _startedAt = DateTime.UtcNow;
-        _boundUrl = url;
-        ListenUrl = url;
-        XTrace.WriteLine("NewLife.OllamaHub 已启动，监听 {0}:{1}", uri.Host, uri.Port);
-    }
-
-    /// <summary>停止并释放当前监听套接字（不释放文件监视器）。</summary>
-    private void StopListener()
-    {
-        try { _server?.Stop("配置热重载：重建监听地址"); }
-        catch (Exception ex) { XTrace.WriteException(ex); }
-        _server = null;
-        StopHttpsListener();
-    }
-
-    /// <summary>
-    /// 按需启动可选的 HTTPS（TLS）监听：仅当 <c>HttpsPort&gt;0</c> 且证书可加载时生效。
-    /// 该监听固定绑定 0.0.0.0（面向局域网），并复用与主监听相同的路由表。
-    /// VS / VS Code 的 Copilot 对非 localhost 地址强制要求 HTTPS，因此这是局域网接入的唯一正式途径。
-    /// </summary>
-    private void StartHttpsListener()
-    {
-        var port = _settings.HttpsPort;
-        if (port <= 0) return;
-
-        if (String.IsNullOrEmpty(_settings.Certificate))
+        var bound = new BoundListener
         {
-            XTrace.WriteLine("[HTTPS] 已配置 HttpsPort={0} 但缺少 Certificate，跳过 HTTPS 监听。", port);
-            return;
-        }
-        var certPath = ResolveCertPath(_settings.Certificate);
-        if (!File.Exists(certPath))
-        {
-            XTrace.WriteLine("[HTTPS] 证书文件不存在：{0}，跳过 HTTPS 监听。", certPath);
-            return;
-        }
-
-        X509Certificate2 cert;
-        try
-        {
-            cert = new X509Certificate2(certPath, _settings.CertPassword ?? "", X509KeyStorageFlags.Exportable);
-        }
-        catch (Exception ex)
-        {
-            XTrace.WriteException(ex);
-            XTrace.WriteLine("[HTTPS] 加载证书失败（路径={0}），跳过 HTTPS 监听。", certPath);
-            return;
-        }
-
-        // HTTPS 面向局域网，固定绑 0.0.0.0；本服务无鉴权且持有上游 API Key，给出安全告警
-        var server = new HttpServer
-        {
-            ServerName = "NewLife.OllamaHub",
-            Port = port,
-            Local = new NetUri(NetType.Tcp, IPAddress.Any, port),
-            AddressFamily = AddressFamily.InterNetwork,
-            Certificate = cert,
+            Server = server,
+            Scheme = scheme,
+            Host = opts.Host,
+            Port = opts.Port,
+            CertPath = resolvedCert,
         };
 
-        XTrace.WriteLine("[安全告警] 正在监听 HTTPS 非回环地址 0.0.0.0:{0}，本服务无鉴权且持有上游 API Key，请确保处于可信网络。", port);
-
-        BindRoutes(server);
         server.Start();
-        _httpsServer = server;
-        _httpsBoundPort = port;
-        _httpsCertPath = certPath;
-        XTrace.WriteLine("NewLife.OllamaHub HTTPS 已启动，监听 https://0.0.0.0:{0}", port);
+        _startedAt = DateTime.UtcNow;
+        XTrace.WriteLine("NewLife.OllamaHub {1} 已启动，监听 {0}", opts.ResolveUrl(scheme), scheme == "https" ? "HTTPS" : "HTTP");
+        return bound;
     }
 
-    /// <summary>停止并释放 HTTPS 监听套接字（若存在）。</summary>
-    private void StopHttpsListener()
+    /// <summary>停止并释放单个监听套接字（若存在）。</summary>
+    private void StopListener(BoundListener? bound)
     {
-        try { _httpsServer?.Stop("配置热重载：重建 HTTPS 监听"); }
+        if (bound?.Server == null) return;
+        try { bound.Server.Stop("配置热重载：重建监听地址"); }
         catch (Exception ex) { XTrace.WriteException(ex); }
-        _httpsServer = null;
-        _httpsBoundPort = 0;
-        _httpsCertPath = null;
+        bound.Server = null;
+        bound.Port = 0;
+        bound.CertPath = null;
     }
 
     /// <summary>
-    /// 热重载时重新对账 HTTPS 监听：当 HttpsPort 或证书路径发生变化时，
-    /// 停止旧监听并按最新配置重启（无需重启进程）。
+    /// 热重载时重新对账两个监听：当 Enabled/Host/Port/证书 发生变化时，
+    /// 停止旧监听并按最新配置重启（无需重启进程）。两个监听相互隔离、各自独立。
     /// </summary>
-    private void ReconcileHttps()
+    private void ReconcileListeners()
     {
-        var port = _settings.HttpsPort;
-        var certPath = String.IsNullOrEmpty(_settings.Certificate) ? null : ResolveCertPath(_settings.Certificate);
+        ReconcileOne(ref _local, _settings.Local, "http", null);
+        ReconcileOne(ref _https, _settings.LanHttps, "https", _settings.LanHttps.Certificate);
+    }
 
-        var portChanged = port != _httpsBoundPort;
-        var certChanged = !String.Equals(certPath, _httpsCertPath, StringComparison.OrdinalIgnoreCase);
-        if (!portChanged && !certChanged) return;
+    private void ReconcileOne(ref BoundListener? bound, HttpListenerOptions opts, String scheme, String? certRelative)
+    {
+        var wantEnabled = opts != null && opts.Enabled && opts.Port > 0;
+        var wantCert = scheme == "https" && !String.IsNullOrEmpty(certRelative)
+            ? ResolveCertPath(certRelative!)
+            : null;
+        var wantSig = wantEnabled ? $"{opts!.Host}:{opts.Port}:{wantCert ?? ""}" : "off";
+        var curSig = bound?.Server == null ? "off" : $"{bound.Host}:{bound.Port}:{bound.CertPath ?? ""}";
+        if (String.Equals(wantSig, curSig, StringComparison.OrdinalIgnoreCase)) return;
 
-        XTrace.WriteLine("[配置热重载] 检测到 HTTPS 配置变更（port {0}→{1}），正在重建 HTTPS 监听…", _httpsBoundPort, port);
-        StopHttpsListener();
-        try
-        {
-            StartHttpsListener();
-            XTrace.WriteLine("[配置热重载] HTTPS 监听已切换，无需重启进程。");
-        }
-        catch (Exception ex)
-        {
-            XTrace.WriteException(ex);
-            XTrace.WriteLine("[配置热重载] HTTPS 新配置启动失败：{0}。已回退为不启用 HTTPS。", ex.Message);
-        }
+        XTrace.WriteLine("[配置热重载] 检测到 {0} 监听变更（{1} → {2}），正在重建…", scheme, curSig, wantSig);
+        StopListener(bound);
+        bound = wantEnabled ? StartListener(opts!, scheme, certRelative) : null;
+        XTrace.WriteLine("[配置热重载] {0} 监听已切换，无需重启进程。", scheme);
     }
 
     /// <summary>把证书相对路径解析为绝对路径（相对 settings.json 所在目录，即程序基目录）。</summary>
@@ -243,17 +217,19 @@ public class OllamaHttpServer
     {
         _watcher?.Dispose();
         _watcher = null;
-        StopListener();
+        StopListener(_local);
+        StopListener(_https);
+        _local = null;
+        _https = null;
         XTrace.WriteLine("NewLife.OllamaHub 已停止。");
     }
 
     /// <summary>settings.json 变更回调：重新加载注册表，必要时重建监听套接字。</summary>
     /// <remarks>
-    /// 监听地址（host/port）变更现在会<b>重建监听套接字</b>即时生效，无需重启进程；
-    /// 其余配置（模型 / 供应商 / 密钥 / 聚合开关）本就即时生效。
+    /// 两个监听（local / lanHttps）各自独立对账：Enabled/Host/Port/证书 变化即重建对应套接字，
+    /// 无需重启进程；其余配置（模型 / 供应商 / 密钥 / 聚合开关）本就即时生效。
     /// 注意 <see cref="ModelRegistry.Load()"/> 会整体替换 <c>Settings</c> 对象，因此须把
-    /// <c>_settings</c> 重新指向最新实例，否则 <see cref="HandleStatus"/> 读取的 host/port/aggregate
-    /// 等会停留在旧对象（修正既有隐患）。
+    /// <c>_settings</c> 重新指向最新实例，否则 <see cref="HandleStatus"/> 读取的监听配置会停留在旧对象。
     /// </remarks>
     private void OnConfigChanged()
     {
@@ -261,46 +237,14 @@ public class OllamaHttpServer
         {
             ModelRegistry.Instance.Load();
             var fresh = ModelRegistry.Instance.Settings;
-            if (String.IsNullOrEmpty(fresh.Url))
-                fresh.Normalize();
+            fresh.Normalize();
             _settings = fresh;
 
-            // HTTPS 监听对账（端口/证书变化即重建），与是否变更主监听地址无关
-            ReconcileHttps();
+            // 两个监听各自对账（端口/证书/启用状态变化即重建），无需重启进程
+            ReconcileListeners();
 
-            var newUrl = fresh.Url;
-            if (String.Equals(_boundUrl, newUrl, StringComparison.OrdinalIgnoreCase))
-            {
-                // 监听地址未变：模型/供应商/密钥/聚合开关已即时生效（_settings 已同步到最新实例）
-                XTrace.WriteLine("[配置热重载] 已重新加载 settings.json：模型 {0} / 供应商 {1}。",
-                    ModelRegistry.Instance.Models.Count, ModelRegistry.Instance.Providers.Count);
-                return;
-            }
-
-            // 监听地址（host/port）变更：重建监听套接字，无需重启进程
-            var oldUrl = _boundUrl;
-            XTrace.WriteLine("[配置热重载] 检测到监听地址变更（{0} → {1}），正在重建监听套接字…", oldUrl, newUrl);
-            StopListener();
-            try
-            {
-                StartListener(newUrl);
-                XTrace.WriteLine("[配置热重载] 监听地址已切换至 {0}，无需重启进程。", newUrl);
-            }
-            catch (Exception ex)
-            {
-                XTrace.WriteException(ex);
-                XTrace.WriteLine("[配置热重载] 新地址 {0} 启动失败：{1}。尝试回退到原地址 {2}。", newUrl, ex.Message, oldUrl);
-                try
-                {
-                    StartListener(oldUrl);
-                    XTrace.WriteLine("[配置热重载] 已回退到原监听地址 {0}，服务继续可用。", oldUrl);
-                }
-                catch (Exception ex2)
-                {
-                    XTrace.WriteException(ex2);
-                    XTrace.WriteLine("[配置热重载] 回退也失败，服务暂时停止监听，请检查端口占用或重启进程。");
-                }
-            }
+            XTrace.WriteLine("[配置热重载] 已重新加载 settings.json：模型 {0} / 供应商 {1}。",
+                ModelRegistry.Instance.Models.Count, ModelRegistry.Instance.Providers.Count);
         }
     }
 
@@ -729,9 +673,11 @@ public class OllamaHttpServer
             ["name"] = "NewLife.OllamaHub",
             ["version"] = typeof(OllamaHttpServer).Assembly.GetName().Version?.ToString() ?? "?",
             ["uptimeSeconds"] = (Int64)(DateTime.UtcNow - _startedAt).TotalSeconds,
-            ["listenUrl"] = _settings.Url,
-            ["httpsPort"] = _settings.HttpsPort,
-            ["httpsEnabled"] = _httpsBoundPort > 0,
+            ["listeners"] = new Object[]
+            {
+                ListenerStatus("local", "http", _settings.Local, _local),
+                ListenerStatus("lanHttps", "https", _settings.LanHttps, _https),
+            },
             ["aggregateLocalOllama"] = _settings.AggregateLocalOllama,
             ["models"] = models.ToArray(),
             ["providers"] = providers.ToArray(),
@@ -739,6 +685,19 @@ public class OllamaHttpServer
             ["totalErrors"] = snapshot.Values.Sum(e => e.Errors),
         };
         WriteJsonNoCharset(ctx, status, HttpStatusCode.OK);
+    }
+
+    /// <summary>构造单个监听的状态块（供 /api/status 输出）。</summary>
+    private static Dictionary<String, Object> ListenerStatus(String name, String scheme, HttpListenerOptions opts, BoundListener? bound)
+    {
+        return new Dictionary<String, Object>
+        {
+            ["name"] = name,
+            ["scheme"] = scheme,
+            ["enabled"] = opts.Enabled,
+            ["url"] = opts.ResolveUrl(scheme),
+            ["bound"] = bound?.Server != null,
+        };
     }
 
     private void HandleAdmin(IHttpContext ctx)

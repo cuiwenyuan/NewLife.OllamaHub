@@ -4,9 +4,18 @@
 
 ```jsonc
 {
-  "url": "http://127.0.0.1:11434",        // 对外展示地址（管理面板用）
-  "host": "127.0.0.1",                     // 监听地址
-  "port": 11434,                           // 监听端口
+  "local": {                          // 本机明文 HTTP 监听（默认启用）
+    "enabled": true,
+    "host": "127.0.0.1",              // 仅本机可连
+    "port": 11434
+  },
+  "lanHttps": {                       // 局域网 HTTPS 监听（默认禁用）
+    "enabled": false,
+    "host": "0.0.0.0",                // 面向局域网
+    "port": 11435,
+    "certificate": "hub.pfx",         // PFX 路径（相对 settings.json 目录或绝对路径）
+    "certPassword": "证书密码（如有）"
+  },
   "logging": { "level": "Info", "retentionDays": 7 },
   "aggregateLocalOllama": false,           // 是否聚合本机真实 Ollama 的模型
   "localOllamaBaseUrl": "http://127.0.0.1:11434",
@@ -16,24 +25,29 @@
 }
 ```
 
-## HTTPS（局域网 / VS Copilot）
+## 双监听：本地 HTTP + 局域网 HTTPS
 
-VS / VS Code 的 Copilot 对**非 localhost 地址强制要求 HTTPS**。若要在局域网其它机器上用 VS 连接本 Hub，需要两步：
+Hub 把监听拆成两个**独立、可并存、可各自启停**的节点：
 
-1. 把 `host` 改为 `0.0.0.0`（或具体局域网 IP）以暴露监听；
-2. 配置一个 HTTPS 端口与证书，由 Hub **原生提供 TLS**（不引入 Caddy/nginx 等任何额外依赖）。
+- **`local`**：明文 HTTP，默认 `127.0.0.1:11434`，仅本机使用（VS Copilot 本机接入走这里）。默认启用。
+- **`lanHttps`**：TLS HTTPS，默认 `0.0.0.0:11435`，面向局域网。VS / VS Code 的 Copilot 对**非 localhost 地址强制要求 HTTPS**，局域网接入必须启用它并配置证书。默认禁用。
+
+两者可**同时在线**，亦可只开其一；配置变更经热重载即时生效（无需重启进程）。
 
 ```jsonc
 {
-  "host": "0.0.0.0",
-  "port": 11434,
-  "httpsPort": 11435,                 // 可选：>0 时启用原生 HTTPS 监听（固定绑 0.0.0.0）
-  "certificate": "hub.pfx",          // PFX 路径（相对 settings.json 目录或绝对路径）
-  "certPassword": "证书密码（如有）"
+  "local": { "enabled": true, "host": "127.0.0.1", "port": 11434 },
+  "lanHttps": {
+    "enabled": true,                  // 启用局域网 HTTPS
+    "host": "0.0.0.0",
+    "port": 11435,
+    "certificate": "hub.pfx",         // PFX 路径（相对 settings.json 目录或绝对路径）
+    "certPassword": "证书密码（如有）"
+  }
 }
 ```
 
-- HTTPS 监听固定绑定 `0.0.0.0:<httpsPort>`，复用与主端口相同的路由（`/api/*`、`/v1/*`、`/admin`）。
+- HTTPS 监听复用与主端口完全相同的路由（`/api/*`、`/v1/*`、`/admin`）。
 - 证书须为 **PFX** 格式，且**必须被 VS 所在机器信任**：自签证书需手动导入该系统/浏览器的“受信任的根证书颁发机构”，否则 VS 仍会拒绝连接。
 - 生成自签证书（PowerShell）：
   ```powershell
@@ -112,9 +126,9 @@ Hub 内置统一适配层，把不同上游响应翻译成 Ollama 兼容帧。�
 
 `settings.json` 变更**无需重启进程**即可生效：Hub 通过 `FileSystemWatcher` 监视文件，去抖（500ms）后自动重新加载注册表；变更若涉及监听地址，还会**自动重建监听套接字**。
 
-- **即时生效（不重启，含监听地址）**：新增/移除模型、增删供应商、轮换 API Key（`setkey` 改写文件即触发）、切换 `aggregateLocalOllama`，以及**修改 `host` / `port` 监听地址**——后者会停止旧套接字、在 `port` 上新起监听，Copilot/浏览器切换到新端口即可，不必停服务。
-- **失败回退**：若新地址（端口被占用等）启动失败，Hub 会尝试回退到原监听地址并继续服务，同时记录错误日志；若回退也失败则暂时停止监听，需检查端口占用或重启进程。
-- **`_settings` 同步**：重载会整体替换配置对象，Hub 内部会同步到最新实例，因此 `/api/status` 等读取的 `listenUrl` / `aggregateLocalOllama` 始终反映最新值。
+- **即时生效（不重启，含监听节点）**：新增/移除模型、增删供应商、轮换 API Key（`setkey` 改写文件即触发）、切换 `aggregateLocalOllama`，以及**修改任一监听节点的 `enabled` / `host` / `port` / `certificate`**——变更会停止对应旧套接字、按新配置重建（仅该监听受影响，另一监听不中断），Copilot/浏览器切换到新端口即可，不必停服务。
+- **失败回退**：若新监听（端口被占用等）启动失败，Hub 会跳过该监听并继续服务其它监听，同时记录错误日志；需检查端口占用或重启进程。
+- **`_settings` 同步**：重载会整体替换配置对象，Hub 内部会同步到最新实例，因此 `/api/status` 等读取的 `listeners` / `aggregateLocalOllama` 始终反映最新值。
 
 > 典型用法：想临时加一个模型调试，直接改 `settings.json` 保存，Copilot 切回对话即可看到新模型，不必停服务；改 `port` 后浏览器/IDE 改用新端口即可，同样无需重启。
 
@@ -149,7 +163,10 @@ Hub 内置一个零依赖的只读管理面板，方便查看运行状态与用�
   "name": "NewLife.OllamaHub",
   "version": "1.0.0.0",
   "uptimeSeconds": 123,
-  "listenUrl": "http://127.0.0.1:11434",
+  "listeners": [
+    { "name": "local", "scheme": "http", "enabled": true, "url": "http://127.0.0.1:11434", "bound": true },
+    { "name": "lanHttps", "scheme": "https", "enabled": false, "url": "https://0.0.0.0:11435", "bound": false }
+  ],
   "aggregateLocalOllama": false,
   "totalRequests": 0,
   "totalErrors": 0,
@@ -165,4 +182,4 @@ Hub 内置一个零依赖的只读管理面板，方便查看运行状态与用�
 }
 ```
 
-> 用浏览器打开 `http://127.0.0.1:11434/admin` 即可看到面板（`listenUrl` 由 `host`/`port` 决定，默认即 `11434`）。
+> 用浏览器打开 `http://127.0.0.1:11434/admin` 即可看到面板（监听端点由 `local` / `lanHttps` 节点决定，默认本机 `11434`）。

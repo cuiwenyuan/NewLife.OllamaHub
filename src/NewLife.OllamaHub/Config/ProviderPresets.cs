@@ -51,7 +51,7 @@ public static class ProviderPresets
     {
         if (chosen == null) throw new ArgumentNullException(nameof(chosen));
 
-        var settings = new HubSettings { Host = "127.0.0.1", Port = 11434 };
+        var settings = new HubSettings();
         foreach (var p in chosen)
         {
             settings.Providers.Add(new ProviderOptions

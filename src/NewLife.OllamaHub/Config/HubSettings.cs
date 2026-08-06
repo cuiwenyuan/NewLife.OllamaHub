@@ -7,39 +7,47 @@ using NewLife.Serialization;
 namespace NewLife.OllamaHub.Config
 {
     /// <summary>
-    /// NewLife.OllamaHub 全局配置，对应 settings.json。
-    /// 同时兼容两种写法：
-    ///   - 单字段 <see cref="Url"/>（如 http://127.0.0.1:11434）；
-    ///   - 拆分 <see cref="Host"/> + <see cref="Port"/>（与 examples 一致），
-    ///     未显式给 Url 时由两者推导。
+    /// 单个监听节点的配置（本地 HTTP 或 局域网 HTTPS 共用）。
+    /// scheme 由使用方决定：Local 为 http，LanHttps 为 https。
     /// </summary>
-    public class HubSettings
+    public class HttpListenerOptions
     {
-        /// <summary>对外暴露的 Ollama 兼容端点。为空时由 Host:Port 推导（见 <see cref="Normalize"/>）。</summary>
-        public String Url { get; set; } = "";
+        /// <summary>是否启用该监听，默认 true（Local）/ false（LanHttps）。</summary>
+        public Boolean Enabled { get; set; } = true;
 
-        /// <summary>监听主机（拆分写法），默认 127.0.0.1。</summary>
+        /// <summary>监听主机。Local 默认 127.0.0.1（仅本机）；LanHttps 默认 0.0.0.0（面向局域网）。</summary>
         public String Host { get; set; } = "127.0.0.1";
 
-        /// <summary>监听端口（拆分写法），默认 11434。</summary>
+        /// <summary>监听端口。</summary>
         public Int32 Port { get; set; } = 11434;
 
         /// <summary>
-        /// HTTPS 监听端口（可选，默认 0 表示不启用）。
-        /// &gt;0 时额外启动一个 TLS 监听，用于 VS / 局域网等非 localhost 场景（VS 强制要求 HTTPS）。
-        /// 该监听固定绑定 0.0.0.0（面向局域网），需配合 <see cref="Certificate"/> 使用。
-        /// </summary>
-        public Int32 HttpsPort { get; set; }
-
-        /// <summary>
-        /// HTTPS 证书（PFX）路径，相对 settings.json 所在目录或绝对路径。
-        /// 仅在 <see cref="HttpsPort"/> &gt; 0 时生效；为空则跳过 HTTPS 监听并告警。
-        /// 证书须被 VS 所在机器信任（自签证书需手动导入受信任根证书）。
+        /// HTTPS 证书（PFX）路径，相对 settings.json 所在目录或绝对路径。仅 HTTPS 监听（LanHttps）使用。
+        /// 为空且 Enabled=true 时跳过该监听并告警。证书须被客户端机器信任（自签需手动导入受信任根证书）。
         /// </summary>
         public String? Certificate { get; set; }
 
-        /// <summary>PFX 证书密码（如有）。</summary>
+        /// <summary>PFX 证书密码（如有）。仅 HTTPS 监听使用。</summary>
         public String? CertPassword { get; set; }
+
+        /// <summary>把当前监听节点推导为对外 URL（scheme 由调用方按节点语义传入）。</summary>
+        public String ResolveUrl(String scheme) => $"{scheme}://{Host}:{Port}";
+    }
+
+    /// <summary>
+    /// NewLife.OllamaHub 全局配置，对应 settings.json。
+    /// 监听拆分为两个独立节点：
+    ///   - <see cref="Local"/>：本机明文 HTTP（默认启用，127.0.0.1:11434）；
+    ///   - <see cref="LanHttps"/>：局域网 TLS HTTPS（默认禁用，0.0.0.0:11435，需证书）。
+    /// 两者可同时在线，亦可各自独立启停（热重载即时生效，无需重启进程）。
+    /// </summary>
+    public class HubSettings
+    {
+        /// <summary>本机明文 HTTP 监听（默认启用，仅供 127.0.0.1）。</summary>
+        public HttpListenerOptions Local { get; set; } = new() { Enabled = true, Host = "127.0.0.1", Port = 11434 };
+
+        /// <summary>局域网 HTTPS 监听（默认禁用，面向 0.0.0.0）。VS / 非 localhost 场景需启用并配置证书。</summary>
+        public HttpListenerOptions LanHttps { get; set; } = new() { Enabled = false, Host = "0.0.0.0", Port = 11435 };
 
         /// <summary>日志配置。</summary>
         public LoggingOptions Logging { get; set; } = new();
@@ -98,13 +106,20 @@ namespace NewLife.OllamaHub.Config
             File.WriteAllText(file, json);
         }
 
-        /// <summary>规范化：未显式给 Url 时由 Host:Port 推导，保证监听地址始终有效。</summary>
+        /// <summary>
+        /// 规范化：确保两个监听节点非空、端口有效、Host 不为空。
+        /// 旧式 host/port/url 字段已废弃，一律以 local/lanHttps 为准。
+        /// </summary>
         internal void Normalize()
         {
-            if (!String.IsNullOrEmpty(Url)) return;
-            Url = (!String.IsNullOrEmpty(Host) && Port > 0)
-                ? $"http://{Host}:{Port}"
-                : "http://127.0.0.1:11434";
+            Local ??= new HttpListenerOptions { Enabled = true, Host = "127.0.0.1", Port = 11434 };
+            LanHttps ??= new HttpListenerOptions { Enabled = false, Host = "0.0.0.0", Port = 11435 };
+
+            if (String.IsNullOrEmpty(Local.Host)) Local.Host = "127.0.0.1";
+            if (Local.Port <= 0) Local.Port = 11434;
+
+            if (String.IsNullOrEmpty(LanHttps.Host)) LanHttps.Host = "0.0.0.0";
+            if (LanHttps.Port <= 0) LanHttps.Port = 11435;
         }
     }
 

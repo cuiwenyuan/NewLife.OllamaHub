@@ -1,6 +1,5 @@
 {
-  "host": "127.0.0.1",
-  "port": 11435,
+  "local": { "enabled": true, "host": "127.0.0.1", "port": 11435 },
   "logging": { "level": "Info", "retentionDays": 7 },
   "aggregateLocalOllama": true,
   "localOllamaBaseUrl": "http://127.0.0.1:11434",
