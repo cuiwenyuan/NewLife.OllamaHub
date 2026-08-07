@@ -66,7 +66,7 @@ Hub 把监听拆成两个**独立、可并存、可各自启停**的节点：
 | `id` | 唯一标识，模型通过 `provider` 引用 |
 | `name` | 展示名 |
 | `baseUrl` | 上游 BaseUrl（到 `/v1` 或 `/v1/chat/completions` 之前的部分） |
-| `apiMode` | `openai`（默认）/ `anthropic` / `gemini` / `ollama`（透传 `/api/chat`） |
+| `apiMode` | `openai`（默认）/ `anthropic` / `gemini` / `ollama`（透传 `/api/chat`）/ `responses`（OpenAI Responses API） |
 | `apiKey` | 明文 Key（仅开发；生产请用 `setkey` 加密或环境变量） |
 | `protectedApiKey` | `setkey` 命令写入的 `dpapi:` 本地 AES 密文，或 `env:NAME` 环境变量引用 |
 | `headers` | 固定请求头，**务必含 `Content-Type: application/json`**（避免上游 415） |
@@ -102,11 +102,36 @@ Hub 内置统一适配层，把不同上游响应翻译成 Ollama 兼容帧。�
 | apiMode | 上游协议 | 关键差异（Hub 已自动处理） |
 |---|---|---|
 | `openai` | OpenAI / 兼容 `/chat/completions`（DeepSeek、Qwen、Kimi、GLM、硅基、火山、混元、ModelScope、OpenRouter 等） | 默认模式；请求体为 OpenAI 形状，SSE 块为 `data: {"choices":[...]}` |
+| `responses` | OpenAI Responses API `/responses` | 请求体为 Responses 形状（`input` items + `max_output_tokens` + `reasoning.effort`）；SSE 为 `event: response.*` 事件块（`output_text.delta` / `reasoning_text.delta` / `reasoning_summary_text.delta` / `function_call_arguments.delta`）；`reasoning_text`/`reasoning_summary_text` ↦ `thinking`；事件名与 `input`/`tools` 结构对齐官方协议。适合需要 o 系列原生 items/工具流或原生 Responses 端点的场景；普通推理模型用 `openai` 模式即可 |
 | `anthropic` | Anthropic Messages API `/v1/messages` | `system` 必须顶层字段；鉴权头 `x-api-key` + `anthropic-version: 2023-06-01`；SSE 为 `event: xxx\n data: {...}` 事件块（`message_start`/`content_block_*`/`message_delta`/`message_stop`）；`tool_use` 块 ↔ Ollama `tool_calls`；思考走 `thinking_delta` |
 | `gemini` | Google Gemini `/models/{model}:streamGenerateContent?alt=sse` | API Key 拼在 URL `?key=`；`systemInstruction` 顶层；`functionCall`/`functionResponse` ↔ 工具；`thought:true` 的 part ↦ `reasoning_content`（思考）；SSE 每行为一完整 `GenerateContentResponse` |
 | `ollama` | 真实 Ollama `/api/chat` | 原样透传请求与 NDJSON 响应，用于聚合本机 Ollama |
 
 > 未知 `apiMode` 会安全回落到 `openai` 并记录告警，不会中断服务。
+
+示例：用 OpenAI Responses API 接入一个 o 系列模型
+
+```jsonc
+{
+  "providers": [
+    {
+      "id": "openai-responses",
+      "name": "OpenAI Responses",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiMode": "responses",
+      "apiKey": "sk-..."
+    }
+  ],
+  "models": [
+    {
+      "id": "o3",
+      "provider": "openai-responses",
+      "thinking": true,
+      "reasoningEffort": "medium"   // 映射到 Responses 的 reasoning.effort
+    }
+  ]
+}
+```
 
 ## 多模态（图像）透传
 

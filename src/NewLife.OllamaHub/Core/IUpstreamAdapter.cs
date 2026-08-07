@@ -56,6 +56,7 @@ public static class UpstreamAdapterFactory
         ["anthropic"] = new AnthropicUpstreamAdapter(),
         ["gemini"] = new GeminiUpstreamAdapter(),
         ["google"] = new GeminiUpstreamAdapter(),
+        ["responses"] = new ResponsesUpstreamAdapter(),
     };
 
     /// <summary>按 ApiMode 取适配器；未知值回落 openai 并记录告警。</summary>
