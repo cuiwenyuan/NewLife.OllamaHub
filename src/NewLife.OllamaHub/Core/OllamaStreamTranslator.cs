@@ -9,8 +9,8 @@ namespace NewLife.OllamaHub.Core;
 /// <summary>
 /// OpenAI SSE 流 → Ollama NDJSON 帧 的增量翻译器（M2 流式）。
 /// 设计要点（与真实 Ollama 行为对齐）：
-///   - Ollama 每个流式帧都携带【截止目前的完整内容】（而非增量 delta），
-///     因此这里跨块累积 content / thinking / tool_calls，每收到一块就发一帧 done:false。
+///   - Ollama 每个流式帧携带当前块的【增量】content / thinking；
+///     这里同时累积完整内容用于非流式响应与推理缓存，但流式下发只发送本块增量。
 ///   - 上游 SSE 末块通常带 finish_reason 与 usage（或单独一个 usage 块），
 ///     流结束后由 Finalize() 补一帧 done:true（含 eval_count / prompt_eval_count）。
 ///   - 推理模型的 reasoning_content 累积进 thinking；工具调用按 index 合并后放进末帧。
@@ -37,24 +37,26 @@ public sealed class OllamaStreamTranslator
         _forGenerate = forGenerate;
     }
 
-    /// <summary>消费一个上游 SSE data: 块的 JSON，返回当前累积的 done:false 帧（不含换行）。</summary>
+    /// <summary>消费一个上游 SSE data: 块的 JSON，返回本块增量 done:false 帧（不含换行）。</summary>
     /// <param name="sseJson">已去除 "data:" 前缀的 OpenAI 块 JSON。</param>
-    /// <returns>当前帧 JSON 字符串（done:false）。</returns>
+    /// <returns>本块增量帧 JSON 字符串（done:false）。</returns>
     public String Consume(String sseJson)
     {
-        if (String.IsNullOrEmpty(sseJson)) return BuildFrame(false);
+        if (String.IsNullOrEmpty(sseJson)) return BuildFrame(false, "", "");
 
         OpenAiChunk? chunk;
         try { chunk = JsonHelper.ToJsonEntity<OpenAiChunk>(sseJson); }
-        catch { return BuildFrame(false); } // 单块解析失败不中断整条流，跳过该块
+        catch { return BuildFrame(false, "", ""); } // 单块解析失败不中断整条流，跳过该块
 
-        if (chunk == null) return BuildFrame(false);
+        if (chunk == null) return BuildFrame(false, "", "");
 
         var choice = chunk.choices != null && chunk.choices.Count > 0 ? chunk.choices[0] : null;
         var delta = choice?.delta;
+        var contentDelta = delta?.content ?? "";
+        var thinkingDelta = delta?.reasoning_content ?? "";
 
-        if (delta?.content != null) _content.Append(delta.content);
-        if (delta?.reasoning_content != null) _thinking.Append(delta.reasoning_content);
+        _content.Append(contentDelta);
+        _thinking.Append(thinkingDelta);
         if (delta?.tool_calls != null) MergeToolCalls(delta.tool_calls);
 
         if (!String.IsNullOrEmpty(choice?.finish_reason))
@@ -67,11 +69,13 @@ public sealed class OllamaStreamTranslator
             _eval = chunk.usage.completion_tokens;
         }
 
-        return BuildFrame(false);
+        return BuildFrame(false, contentDelta, thinkingDelta);
     }
 
-    /// <summary>流结束后补一帧 done:true（含用量统计）。</summary>
-    public String Finalize() => BuildFrame(true);
+    /// <summary>流结束后补一帧 done:true；流式响应默认只发送结束信号，非流式调用可保留完整内容。</summary>
+    /// <param name="includeContent">是否在结束帧中包含完整内容；非流式响应需传 true。</param>
+    public String Finalize(Boolean includeContent = true)
+        => BuildFrame(true, includeContent ? _content.ToString() : "", includeContent ? _thinking.ToString() : "");
 
     /// <summary>截至当前的累计 token 用量（供 UsageStats 埋点）。</summary>
     public (Int64 Prompt, Int64 Completion) Usage => (_promptEval, _eval);
@@ -109,7 +113,8 @@ public sealed class OllamaStreamTranslator
         }
     }
 
-    private String BuildFrame(Boolean done)
+    /// <summary>构造 Ollama 帧；流式帧只放当前增量，结束帧可按调用方选择放完整内容。</summary>
+    private String BuildFrame(Boolean done, String content, String thinking)
     {
         var created = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
@@ -119,23 +124,23 @@ public sealed class OllamaStreamTranslator
             {
                 ["model"] = _model.Id,
                 ["created_at"] = created,
-                ["response"] = _content.ToString(),
+                ["response"] = content,
                 ["done"] = done,
                 ["done_reason"] = _doneReason,
                 ["eval_count"] = _eval,
                 ["prompt_eval_count"] = _promptEval,
             };
-            if (_thinking.Length > 0) resp["thinking"] = _thinking.ToString();
+            if (!String.IsNullOrEmpty(thinking)) resp["thinking"] = thinking;
             return JsonHelper.ToJson(resp);
         }
 
         var message = new Dictionary<String, Object?>
         {
             ["role"] = "assistant",
-            ["content"] = _content.ToString(),
+            ["content"] = content,
         };
-        if (_thinking.Length > 0) message["thinking"] = _thinking.ToString();
-        if (_toolCalls.Count > 0) message["tool_calls"] = _toolCalls.ToArray();
+        if (!String.IsNullOrEmpty(thinking)) message["thinking"] = thinking;
+        if (done && _toolCalls.Count > 0) message["tool_calls"] = _toolCalls.ToArray();
 
         var respChat = new Dictionary<String, Object?>
         {

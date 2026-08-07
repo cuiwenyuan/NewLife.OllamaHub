@@ -380,12 +380,13 @@ public class OllamaHttpServer
             if (model.Thinking && model.IncludeReasoningInRequest)
                 ReasoningCache.Inject(req.messages);
 
-            // 统一向上游请求 stream:true，再由翻译器累积成 Ollama NDJSON：
-            //   - 上游正常回 SSE → 逐块累积（done:false 帧 + 末帧 done:true）；
+            // 统一向上游请求 stream:true，再由翻译器桥接成 Ollama NDJSON：
+            //   - 上游正常回 SSE → 翻译器逐块下发【增量 delta 帧】（done:false），末帧 done:true 仅发结束信号；
             //   - 上游忽略 stream 仍回 SSE（部分国内网关如此）→ 同样被正确处理；
             //   - 极少数上游回单 JSON（fallback）→ 降级走 M1 非流式单帧转换。
-            // 关键点：Copilot 要的是 Ollama 帧，是否逐帧下发由 req.stream 决定，但上游一律按 SSE 读，
-            // 从而彻底规避"上游忽略 stream:false 仍回 SSE"导致整段 SSE 被当 JSON 解析而 502 的坑。
+            // 关键点：真实 Ollama 的流式每帧 content 就是增量 delta（客户端自行拼接），
+            //   故这里逐帧下发增量而非累积全文——这也修复了 CherryStudio 等原生 Ollama 客户端的重复输出。
+            //   Copilot 走 /v1/chat/completions（直接中继 OpenAI 增量 SSE），不受此累积逻辑影响。
             var adapter = UpstreamAdapterFactory.Get(provider.ApiMode);
             var oaReq = adapter.BuildRequest(req, model, forceStream: true);
             var acc = new OllamaStreamTranslator(model, forGenerate: false);
@@ -402,7 +403,8 @@ public class OllamaHttpServer
 
             if (req.stream)
             {
-                frames.Append(acc.Finalize()).Append('\n');
+                // 流式：末帧只发结束信号（done:true，content 为空），与真实 Ollama 流式一致
+                frames.Append(acc.Finalize(false)).Append('\n');
                 SetDiagnosticHeaders(ctx, requestedModel, model, provider, provider.ApiMode);
                 WriteRaw(ctx, frames.ToString(), HttpStatusCode.OK);
             }
@@ -464,7 +466,8 @@ public class OllamaHttpServer
 
             if (chat.stream)
             {
-                frames.Append(acc.Finalize()).Append('\n');
+                // 流式：末帧只发结束信号（done:true，response 为空），与真实 Ollama 流式一致
+                frames.Append(acc.Finalize(false)).Append('\n');
                 WriteRaw(ctx, frames.ToString(), HttpStatusCode.OK);
             }
             else

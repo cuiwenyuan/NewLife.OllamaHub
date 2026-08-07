@@ -368,35 +368,61 @@ namespace NewLife.OllamaHub.Commands
         /// <summary>M2：逐块 SSE → 累积 Ollama 帧（done:false → done:true + usage）。</summary>
         private static void CheckStreamTranslation()
         {
-            var tr = new OllamaStreamTranslator(new ModelOptions { Id = "m1" }, forGenerate: false);
-            var frames = new List<String>
-            {
-                tr.Consume("{\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":\"你\"}}]}"),
-                tr.Consume("{\"choices\":[{\"delta\":{\"content\":\"好\"}}]}"),
-                tr.Consume("{\"choices\":[{\"delta\":{}}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":3}}"),
-            };
+        var tr = new OllamaStreamTranslator(new ModelOptions { Id = "m1" }, forGenerate: false);
+        var frames = new List<String>
+        {
+            tr.Consume("{\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":\"你\"}}]}"),
+            tr.Consume("{\"choices\":[{\"delta\":{\"content\":\"好\"}}]}"),
+            tr.Consume("{\"choices\":[{\"delta\":{}}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":3}}"),
+        };
 
-            Assert("流式翻译：累积内容为完整串", String.Join("\n", frames).Contains("\"content\":\"你好\""));
-            Assert("流式翻译：每帧 done=false", frames.TrueForAll(f => f.Contains("\"done\":false")));
+        // 增量语义：每帧只含本块 delta，而非累积全文（修复 CherryStudio 等原生 Ollama 客户端重复输出）
+        Assert("流式翻译：首帧 content 仅含增量 你", frames[0].Contains("\"content\":\"你\""));
+        Assert("流式翻译：次帧 content 仅含增量 好", frames[1].Contains("\"content\":\"好\""));
+        Assert("流式翻译：增量帧不含累积全文 你好", !String.Join("\n", frames).Contains("\"content\":\"你好\""));
+        Assert("流式翻译：每帧 done=false", frames.TrueForAll(f => f.Contains("\"done\":false")));
 
-            var fin = tr.Finalize();
-            Assert("流式翻译：末帧 done=true", fin.Contains("\"done\":true"));
-            Assert("流式翻译：末帧含 eval_count", fin.Contains("\"eval_count\":3"));
-            Assert("流式翻译：末帧含 prompt_eval_count", fin.Contains("\"prompt_eval_count\":2"));
+        // 流式结束帧：仅发结束信号，content 为空（与真实 Ollama 一致）
+        var fin = tr.Finalize(false);
+        Assert("流式翻译：末帧 done=true", fin.Contains("\"done\":true"));
+        Assert("流式翻译：末帧 content 为空", fin.Contains("\"content\":\"\""));
+        Assert("流式翻译：末帧不含累积全文", !fin.Contains("\"content\":\"你好\""));
+        Assert("流式翻译：末帧含 eval_count", fin.Contains("\"eval_count\":3"));
+        Assert("流式翻译：末帧含 prompt_eval_count", fin.Contains("\"prompt_eval_count\":2"));
+
+        // 非流式路径：Finalize() 默认保留完整内容（单帧 done:true 含全文）
+        var tr2 = new OllamaStreamTranslator(new ModelOptions { Id = "m1" }, forGenerate: false);
+        tr2.Consume("{\"choices\":[{\"delta\":{\"content\":\"你\"}}]}");
+        tr2.Consume("{\"choices\":[{\"delta\":{\"content\":\"好\"}}]}");
+        var nonStream = tr2.Finalize();
+        Assert("非流式：末帧含完整内容 你好", nonStream.Contains("\"content\":\"你好\""));
+        Assert("非流式：末帧 done=true", nonStream.Contains("\"done\":true"));
         }
 
         /// <summary>M2：/api/generate 的流式帧须用 response 字符串而非 message 对象。</summary>
         private static void CheckStreamTranslationGenerate()
         {
-            var tr = new OllamaStreamTranslator(new ModelOptions { Id = "m1" }, forGenerate: true);
-            var frames = new List<String>
-            {
-                tr.Consume("{\"choices\":[{\"delta\":{\"content\":\"世\"}}]}"),
-                tr.Consume("{\"choices\":[{\"delta\":{\"content\":\"界\"}}]}"),
-            };
-            var all = String.Join("\n", frames) + tr.Finalize();
-            Assert("generate 流式：使用 response 字段", all.Contains("\"response\":\"世界\""));
-            Assert("generate 流式：不含 message 对象", !all.Contains("\"message\""));
+        var tr = new OllamaStreamTranslator(new ModelOptions { Id = "m1" }, forGenerate: true);
+        var frames = new List<String>
+        {
+            tr.Consume("{\"choices\":[{\"delta\":{\"content\":\"世\"}}]}"),
+            tr.Consume("{\"choices\":[{\"delta\":{\"content\":\"界\"}}]}"),
+        };
+        // 增量：每帧只含本块 delta
+        Assert("generate 流式：首帧 response 仅含增量 世", frames[0].Contains("\"response\":\"世\""));
+        Assert("generate 流式：次帧 response 仅含增量 界", frames[1].Contains("\"response\":\"界\""));
+        Assert("generate 流式：增量帧不含累积全文 世界", !String.Join("\n", frames).Contains("\"response\":\"世界\""));
+
+        // 流式结束帧：response 为空（done:true）；非流式末帧才含完整内容
+        var fin = String.Join("\n", frames) + tr.Finalize(false);
+        Assert("generate 流式：末帧 response 为空", fin.Contains("\"response\":\"\""));
+        Assert("generate 流式：不含 message 对象", !fin.Contains("\"message\""));
+
+        // 非流式：Finalize() 含完整内容
+        var tr2 = new OllamaStreamTranslator(new ModelOptions { Id = "m1" }, forGenerate: true);
+        tr2.Consume("{\"choices\":[{\"delta\":{\"content\":\"世\"}}]}");
+        tr2.Consume("{\"choices\":[{\"delta\":{\"content\":\"界\"}}]}");
+        Assert("generate 非流式：末帧含完整内容 世界", tr2.Finalize().Contains("\"response\":\"世界\""));
         }
 
         /// <summary>M2：工具 schema 清洗须剔除上游不识别的键，并补 parameters.type=object。</summary>
@@ -520,7 +546,7 @@ namespace NewLife.OllamaHub.Commands
             tr.Consume("{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"\"}}]}}]}");
             // 第二块：arguments 后半（跨块拼接）
             tr.Consume("{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"Beijing\\\"}\"}}]}}]}");
-            var fin = tr.Finalize();
+            var fin = tr.Finalize(false);
 
             Assert("tool_calls 响应：合并出 tool_calls", fin.Contains("\"tool_calls\""));
             Assert("tool_calls 响应：含调用 id", fin.Contains("call_1"));
