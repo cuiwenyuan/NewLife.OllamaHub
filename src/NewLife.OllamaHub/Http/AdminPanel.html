@@ -65,7 +65,8 @@ async function load() {
     '<div class="card"><div class="k">'+c[0]+'</div><div class="v">'+c[1]+'</div></div>').join('');
   const ls = (s.listeners||[]).map(function(l){
     const status = l.bound ? '<span class="ok">在线</span>' : (l.enabled ? '<span class="err">未启动</span>' : '<span class="tag">禁用</span>');
-    const name = l.scheme === 'https' ? '局域网 HTTPS' : '本地 HTTP';
+    const nameMap = { local:'本机 HTTP', lanHttp:'局域网 HTTP', lanHttps:'局域网 HTTPS' };
+    const name = nameMap[l.name] || (l.scheme === 'https' ? '局域网 HTTPS' : '本地 HTTP');
     return '<div style="margin:6px 0"><div class="k">'+name+' · '+(l.enabled?'启用':'禁用')+'</div>'+
            '<div class="v">'+ (l.url||'-') + ' ' + status + '</div></div>';
   }).join('');

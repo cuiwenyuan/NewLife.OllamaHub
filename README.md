@@ -80,6 +80,7 @@
 - [升级](docs/upgrade.md)
 - [排错](docs/troubleshooting.md)
 - [常见问题](docs/faq.md)
+- [更新日志 ChangeLog](ChangeLog.md)
 
 ## 许可证
 

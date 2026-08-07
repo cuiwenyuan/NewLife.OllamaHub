@@ -36,10 +36,14 @@ namespace NewLife.OllamaHub.Config
 
     /// <summary>
     /// NewLife.OllamaHub 全局配置，对应 settings.json。
-    /// 监听拆分为两个独立节点：
+    /// 监听拆分为三个独立节点：
     ///   - <see cref="Local"/>：本机明文 HTTP（默认启用，127.0.0.1:11434）；
-    ///   - <see cref="LanHttps"/>：局域网 TLS HTTPS（默认禁用，0.0.0.0:11435，需证书）。
-    /// 两者可同时在线，亦可各自独立启停（热重载即时生效，无需重启进程）。
+    ///   - <see cref="LanHttps"/>：局域网 TLS HTTPS（默认禁用，0.0.0.0:11435，需证书）；
+    ///   - <see cref="LanHttp"/>：局域网明文 HTTP（默认禁用，0.0.0.0:11436，无证书）。
+    /// 三者可同时在线，亦可各自独立启停（热重载即时生效，无需重启进程）。
+    /// LanHttp 用于 Visual Studio 的 "Ollama" BYO 提供商的局域网接入 workaround：
+    /// VS 仅允许 localhost HTTP 或 LAN HTTPS，但 LAN HTTPS 运行时因自签证书校验失败而取不到模型；
+    /// 启用 LanHttp 后，在 VS 里先填 https 保存、再改配置文件把 https 改回 http，即可在局域网拿到模型列表。
     /// </summary>
     public class HubSettings
     {
@@ -48,6 +52,9 @@ namespace NewLife.OllamaHub.Config
 
         /// <summary>局域网 HTTPS 监听（默认禁用，面向 0.0.0.0）。VS / 非 localhost 场景需启用并配置证书。</summary>
         public HttpListenerOptions LanHttps { get; set; } = new() { Enabled = false, Host = "0.0.0.0", Port = 11435 };
+
+        /// <summary>局域网明文 HTTP 监听（默认禁用，面向 0.0.0.0，无证书）。用于 VS "Ollama" BYO 提供商的局域网接入 workaround。</summary>
+        public HttpListenerOptions LanHttp { get; set; } = new() { Enabled = false, Host = "0.0.0.0", Port = 11436 };
 
         /// <summary>日志配置。</summary>
         public LoggingOptions Logging { get; set; } = new();
@@ -114,12 +121,16 @@ namespace NewLife.OllamaHub.Config
         {
             Local ??= new HttpListenerOptions { Enabled = true, Host = "127.0.0.1", Port = 11434 };
             LanHttps ??= new HttpListenerOptions { Enabled = false, Host = "0.0.0.0", Port = 11435 };
+            LanHttp ??= new HttpListenerOptions { Enabled = false, Host = "0.0.0.0", Port = 11436 };
 
             if (String.IsNullOrEmpty(Local.Host)) Local.Host = "127.0.0.1";
             if (Local.Port <= 0) Local.Port = 11434;
 
             if (String.IsNullOrEmpty(LanHttps.Host)) LanHttps.Host = "0.0.0.0";
             if (LanHttps.Port <= 0) LanHttps.Port = 11435;
+
+            if (String.IsNullOrEmpty(LanHttp.Host)) LanHttp.Host = "0.0.0.0";
+            if (LanHttp.Port <= 0) LanHttp.Port = 11436;
         }
     }
 

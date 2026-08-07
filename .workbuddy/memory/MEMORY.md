@@ -13,12 +13,12 @@
 - 工具 `ToolSchemaSanitizer.Sanitize` 递归删 `$schema`/`definitions`/`$defs`/`title`/`examples`/`additionalProperties`/`x-*`。
 - HTTP 端点：Ollama 原生 `/api/tags`/`/api/chat`/`/api/generate` + **必须**保留 `POST /v1/chat/completions`、`GET /v1/models`（VS "Ollama" BYO 是 OpenAI 客户端，只打 `/v1/*`，缺失裸 404）。ollama 模式走 `UpstreamClient.RelayAsync`。
 
-## 配置与双监听（2026-08-06，不向后兼容）
-- `HubSettings` 两独立节点：`Local`（明文 HTTP，默认 enabled/127.0.0.1/11434）+ `LanHttps`（TLS，默认 disabled/0.0.0.0/11435/`certificate`(PFX)/`certPassword`）。旧顶层 `url`/`host`/`port`/`httpsPort`/`certificate`/`certPassword` **已删，不再兼容**。`Normalize()` 归一化两子对象派生 `Local.Url`；`ProviderPresets` 默认构造改无参 `new HubSettings()`。
-- `OllamaHttpServer` 两 `HttpServer`：`_localServer`(Local.Url) + `_httpsServer`(LanHttps，证书缺失告警跳过)；`StartListenerInner` 按 `UseTls` 选 HTTP/HTTPS；`HandleStatus` 输出 `listeners[]`(name/scheme/enabled/url/host/port/bound)，无单一 `listenUrl`/`httpsPort`。
-- 热重载：`ConfigWatcher` 监视 settings.json(500ms 去抖)→`ModelRegistry.Instance.Load()` 整体替换 Settings（非原地）。监听变更经 `ReconcileListeners()` 逐监听对账 enabled/地址/证书，失败回退，无需重启。
+## 配置与三监听（2026-08-06 双监听；2026-08-07 加 lanHttp）
+- `HubSettings` 三独立节点（不向后兼容）：`Local`（明文 HTTP，默认 enabled/127.0.0.1/11434）+ `LanHttp`（明文 HTTP，默认 disabled/0.0.0.0/11436/无证书）+ `LanHttps`（TLS，默认 disabled/0.0.0.0/11435/`certificate`(PFX)/`certPassword`）。旧顶层 `url`/`host`/`port`/`httpsPort`/`certificate`/`certPassword` **已删，不再兼容**。`Normalize()` 归一化三子对象；`ProviderPresets` 默认构造改无参 `new HubSettings()`。
+- `OllamaHttpServer` 三 `HttpServer`：`_local`(Local) + `_lanHttp`(LanHttp，无证书) + `_https`(LanHttps，证书缺失告警跳过)；`ReconcileListeners()` 逐监听对账 enabled/地址/证书，失败回退，无需重启；`HandleStatus` 输出 `listeners[]`(name/scheme/enabled/url/bound)。
+- **VS 局域网接入 bug（2026-08-07 修复）**：VS "Ollama" BYO 是非 localhost 强制 HTTPS 的 OpenAI 客户端，走 `GET /v1/models` 列模型；自签 `lanHttps` 运行时证书校验失败→模型列表空。修复=新增 `lanHttp` 明文 HTTP 节点（默认 11436），用户启用后按 workaround：VS 里先填 `https://<IP>:11435/v1` 保存→改其 `ConfiguredBringYourOwnModel_v1.json` 把 https 改回 `http://<IP>:11436/v1`→重启 VS，模型即出。根因非 Hub 端点返回空（两端点实测均正常）。文档见 `docs/configuration.md`「三监听」+「VS 局域网接入说明」、`docs/vs-setup.md`「局域网接入」、`docs/faq.md`。
 - `SecretProtector` 实为 BCL AES-256-CBC 机器绑定（盐 `NewLife.OllamaHub::v1::`+MachineName），非 DPAPI；优先级 明文>`env:NAME`>`dpapi:<base64>`>明文。
-- 证书须被 VS 信任（自签导入受信任根）；Hub 无鉴权，暴露局域网=Key 暴露，**仅限可信网络/VPN**。文档见 `docs/configuration.md`「本地与局域网监听（双节点）」+ `docs/faq.md`。
+- 证书须被 VS 信任（自签导入受信任根）；Hub 无鉴权，暴露局域网=Key 暴露，**仅限可信网络/VPN**。
 
 ## 供应商预设与模型名
 - `ProviderPresets.cs` 内置 11 家：9 OpenAI 兼容(deepseek/qwen/kimi/glm/siliconflow/volcengine/hunyuan/modelscope/openrouter)+anthropic+gemini。
@@ -33,9 +33,9 @@
 - 服务安装无法在沙箱完成（`exe -i` 非管理员提权崩溃）→ 用户本机右键 exe→管理员→菜单 2。
 - 验证修复编入单文件：菜单用 `ReadKey`（stdin 重定向抛异常）→ 用 Python UTF-16LE(`s.encode("utf-16-le")`) 在 exe/dll 检索中文文案。
 - 前台 `--serve`（双横杠，stdin 重定向下可靠）；`-run` 抛 `ReadKey` 异常。
-- self-test `.exe self-test` 零框架，退出码=失败数，当前 204/0 全绿（2026-08-07 +3 Responses 适配器测试 + 增量流式断言重写）。
+- self-test `.exe self-test` 零框架，退出码=失败数，当前 211/0 全绿（2026-08-07 +3 Responses 测试 + 增量流式断言重写 + 7 三监听 schema 断言）。
 - exe 版本号=构建日期+时间(csproj：`AssemblyVersion=1.0.<距2000-01-01天数>.<自午夜半秒数>`、`FileVersion=1.0.<YYYY>.<MMDD>`，用户 2026-08-05 明确要求，勿改固定)。
-- 端口：hub 127.0.0.1:11434；mock openai :9099；fake ollama :11435。
+- 端口：hub 本机 127.0.0.1:11434(local) / 局域网明文 0.0.0.0:11436(lanHttp) / 局域网 HTTPS 0.0.0.0:11435(lanHttps)；mock openai :9099；fake ollama :11435。
 
 ## GitHub Release / 推送
 - 推送 `v*` tag（如 `git tag v1.0.0 && git push origin v1.0.0`）→ `.github/workflows/build.yml` 自动 build+publish+`softprops/action-gh-release@v2`，用内置 GITHUB_TOKEN，无需 PAT。CI 仅覆盖 `Version=tag`，文件版本仍走日期+时间。

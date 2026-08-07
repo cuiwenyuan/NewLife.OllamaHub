@@ -881,7 +881,7 @@ namespace NewLife.OllamaHub.Commands
 
         // ---- 断言工具 ----
 
-        /// <summary>M3：HubSettings 采用 local/lanHttps 双监听结构，Save/Load 往返保留供应商。</summary>
+        /// <summary>M3：HubSettings 采用 local/lanHttp/lanHttps 三监听结构，Save/Load 往返保留供应商。</summary>
         private static void CheckSettingsSchema()
         {
             var dir = Path.Combine(Path.GetTempPath(), "ollamahub_cfg_" + Guid.NewGuid().ToString("N"));
@@ -894,7 +894,19 @@ namespace NewLife.OllamaHub.Commands
                 Assert("配置 schema：local 节点解析 host/port", s.Local.Host == "127.0.0.1" && s.Local.Port == 12345);
                 Assert("配置 schema：local 默认启用", s.Local.Enabled);
                 Assert("配置 schema：lanHttps 默认禁用", !s.LanHttps.Enabled);
+                Assert("配置 schema：lanHttps 默认端口 11435", s.LanHttps.Port == 11435);
+                Assert("配置 schema：lanHttp 默认禁用", !s.LanHttp.Enabled);
+                Assert("配置 schema：lanHttp 默认端口 11436", s.LanHttp.Port == 11436);
                 Assert("配置 schema：local 推导 URL", s.Local.ResolveUrl("http") == "http://127.0.0.1:12345");
+
+                // 三监听全启用场景：各自推导 URL 正确（local=http / lanHttp=http / lanHttps=https）
+                var file3 = Path.Combine(dir, "settings3.json");
+                File.WriteAllText(file3, "{\"local\":{\"enabled\":true,\"host\":\"127.0.0.1\",\"port\":11434},\"lanHttp\":{\"enabled\":true,\"host\":\"0.0.0.0\",\"port\":11436},\"lanHttps\":{\"enabled\":true,\"host\":\"0.0.0.0\",\"port\":11435,\"certificate\":\"hub.pfx\"}}");
+                var s3 = HubSettings.Load(file3);
+                Assert("配置 schema：三监听全启用解析", s3.Local.Enabled && s3.LanHttp.Enabled && s3.LanHttps.Enabled);
+                Assert("配置 schema：local URL", s3.Local.ResolveUrl("http") == "http://127.0.0.1:11434");
+                Assert("配置 schema：lanHttp URL", s3.LanHttp.ResolveUrl("http") == "http://0.0.0.0:11436");
+                Assert("配置 schema：lanHttps URL", s3.LanHttps.ResolveUrl("https") == "https://0.0.0.0:11435");
 
                 // 往返：写入后再读回，供应商/模型不丢
                 s.Providers.Add(new ProviderOptions { Id = "p2", BaseUrl = "https://y" });

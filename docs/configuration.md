@@ -16,6 +16,11 @@
     "certificate": "hub.pfx",         // PFX 路径（相对 settings.json 目录或绝对路径）
     "certPassword": "证书密码（如有）"
   },
+  "lanHttp": {                        // 局域网明文 HTTP 监听（默认禁用，用于 VS "Ollama" BYO 局域网接入）
+    "enabled": false,
+    "host": "0.0.0.0",                // 面向局域网
+    "port": 11436
+  },
   "logging": { "level": "Info", "retentionDays": 7 },
   "aggregateLocalOllama": false,           // 是否聚合本机真实 Ollama 的模型
   "localOllamaBaseUrl": "http://127.0.0.1:11434",
@@ -25,18 +30,24 @@
 }
 ```
 
-## 双监听：本地 HTTP + 局域网 HTTPS
+## 三监听：本机 HTTP + 局域网 HTTP + 局域网 HTTPS
 
-Hub 把监听拆成两个**独立、可并存、可各自启停**的节点：
+Hub 把监听拆成三个**独立、可并存、可各自启停**的节点：
 
 - **`local`**：明文 HTTP，默认 `127.0.0.1:11434`，仅本机使用（VS Copilot 本机接入走这里）。默认启用。
+- **`lanHttp`**：明文 HTTP，默认 `0.0.0.0:11436`，面向局域网、**无证书**。默认禁用。用于 Visual Studio 的 “Ollama” BYO 提供商在**局域网**接入（见下方「VS 局域网接入说明」）。
 - **`lanHttps`**：TLS HTTPS，默认 `0.0.0.0:11435`，面向局域网。VS / VS Code 的 Copilot 对**非 localhost 地址强制要求 HTTPS**，局域网接入必须启用它并配置证书。默认禁用。
 
-两者可**同时在线**，亦可只开其一；配置变更经热重载即时生效（无需重启进程）。
+三者可**同时在线**，亦可只开其中任意组合；配置变更经热重载即时生效（无需重启进程）。
 
 ```jsonc
 {
   "local": { "enabled": true, "host": "127.0.0.1", "port": 11434 },
+  "lanHttp": {
+    "enabled": true,                  // 启用局域网明文 HTTP（VS 局域网接入 workaround）
+    "host": "0.0.0.0",
+    "port": 11436
+  },
   "lanHttps": {
     "enabled": true,                  // 启用局域网 HTTPS
     "host": "0.0.0.0",
@@ -57,7 +68,18 @@ Hub 把监听拆成两个**独立、可并存、可各自启停**的节点：
   也可用 `mkcert <服务器IP>` 生成受信任证书（配合下方反向代理方案）。
 - 安全提醒：Hub **不带鉴权**，暴露到局域网即等同把上游 API Key 暴露给同网段任何人。仅限可信网络 / VPN 使用，并妥善保管 Key。
 
-> **临时方案（不想启用原生 HTTPS 时）**：在服务器前置 Caddy（`caddy reverse_proxy localhost:11434` + 自动 HTTPS），VS 填 `https://<服务器IP>:11435`，客户端执行 `caddy trust` 信任其根证书即可。详见 Issue #1。
+### VS 局域网接入说明（重要）
+
+Visual Studio 的 “Ollama” Bring-Your-Own 提供商底层是 OpenAI 客户端，依赖 `GET /v1/models` 列模型。它在**非 localhost 地址**上**只允许 HTTPS**，但实际运行时因自签证书校验失败会返回空模型列表（502）。因此：
+
+1. 在 Hub 启用 **`lanHttp`**（局域网明文 HTTP，端口 `11436`）。
+2. 在 VS 里添加 Ollama 时，**先**填 `https://<服务器IP>:11435/v1` 保存（VS 只接受这种形式）。
+3. 关闭 VS，手动编辑其配置文件（机器上搜索 `ConfiguredBringYourOwnModel_v1.json`），把其中的 `https://...:11435/v1` **改回** `http://<服务器IP>:11436/v1`。
+4. 重新打开 VS，模型列表即可正常加载（后续调用也走 `lanHttp` 明文 HTTP）。
+
+> 若你已让 `lanHttps` 的证书被 VS 机器**信任**（导入受信任根证书），则可跳过第 2–4 步，直接填 `https://<服务器IP>:11435/v1` 使用原生 HTTPS。
+
+> **不想启用原生 HTTPS 也不想暴露明文 HTTP 时**：在服务器前置 Caddy（`caddy reverse_proxy localhost:11434` + 自动 HTTPS），VS 填 `https://<服务器IP>:11435`，客户端执行 `caddy trust` 信任其根证书即可。详见 Issue #1。
 
 ## providers[]
 
@@ -190,6 +212,7 @@ Hub 内置一个零依赖的只读管理面板，方便查看运行状态与用�
   "uptimeSeconds": 123,
   "listeners": [
     { "name": "local", "scheme": "http", "enabled": true, "url": "http://127.0.0.1:11434", "bound": true },
+    { "name": "lanHttp", "scheme": "http", "enabled": false, "url": "http://0.0.0.0:11436", "bound": false },
     { "name": "lanHttps", "scheme": "https", "enabled": false, "url": "https://0.0.0.0:11435", "bound": false }
   ],
   "aggregateLocalOllama": false,
@@ -207,4 +230,4 @@ Hub 内置一个零依赖的只读管理面板，方便查看运行状态与用�
 }
 ```
 
-> 用浏览器打开 `http://127.0.0.1:11434/admin` 即可看到面板（监听端点由 `local` / `lanHttps` 节点决定，默认本机 `11434`）。
+> 用浏览器打开 `http://127.0.0.1:11434/admin` 即可看到面板（监听端点由 `local` / `lanHttp` / `lanHttps` 节点决定，默认本机 `11434`）。

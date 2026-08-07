@@ -40,6 +40,9 @@ public class OllamaHttpServer
     /// <summary>局域网 HTTPS 监听（TLS）。null 表示未启用或启动失败。</summary>
     private BoundListener? _https;
 
+    /// <summary>局域网明文 HTTP 监听（无证书，VS "Ollama" BYO 局域网接入 workaround 用）。null 表示未启用或启动失败。</summary>
+    private BoundListener? _lanHttp;
+
     /// <summary>单个监听的运行态记录（用于热重载对账）。</summary>
     private sealed class BoundListener
     {
@@ -57,7 +60,7 @@ public class OllamaHttpServer
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
-    /// <summary>启动 HTTP / HTTPS 服务并注册 Ollama 路由。本地 HTTP 与局域网 HTTPS 可同时在线。</summary>
+    /// <summary>启动 HTTP / HTTPS 服务并注册 Ollama 路由。本地 HTTP、局域网 HTTP、局域网 HTTPS 可同时在线。</summary>
     public void Start()
     {
         // 防御：确保两个监听节点非空、端口有效（无 settings.json 时取默认）
@@ -66,6 +69,7 @@ public class OllamaHttpServer
         // 先起监听，再挂热重载监视（避免监视器先于服务就绪触发无意义回调）
         _local = StartListener(_settings.Local, "http", null);
         _https = StartListener(_settings.LanHttps, "https", _settings.LanHttps.Certificate);
+        _lanHttp = StartListener(_settings.LanHttp, "http", null);
 
         // M4/M6 热重载：监视 settings.json，变更后立即重载注册表；
         // 若仅模型/供应商/密钥/聚合变更则即时生效，若监听配置变更则重建对应监听套接字，
@@ -163,13 +167,14 @@ public class OllamaHttpServer
     }
 
     /// <summary>
-    /// 热重载时重新对账两个监听：当 Enabled/Host/Port/证书 发生变化时，
-    /// 停止旧监听并按最新配置重启（无需重启进程）。两个监听相互隔离、各自独立。
+    /// 热重载时重新对账三个监听：当 Enabled/Host/Port/证书 发生变化时，
+    /// 停止旧监听并按最新配置重启（无需重启进程）。三个监听相互隔离、各自独立。
     /// </summary>
     private void ReconcileListeners()
     {
         ReconcileOne(ref _local, _settings.Local, "http", null);
         ReconcileOne(ref _https, _settings.LanHttps, "https", _settings.LanHttps.Certificate);
+        ReconcileOne(ref _lanHttp, _settings.LanHttp, "http", null);
     }
 
     private void ReconcileOne(ref BoundListener? bound, HttpListenerOptions opts, String scheme, String? certRelative)
@@ -219,8 +224,10 @@ public class OllamaHttpServer
         _watcher = null;
         StopListener(_local);
         StopListener(_https);
+        StopListener(_lanHttp);
         _local = null;
         _https = null;
+        _lanHttp = null;
         XTrace.WriteLine("NewLife.OllamaHub 已停止。");
     }
 
@@ -240,7 +247,7 @@ public class OllamaHttpServer
             fresh.Normalize();
             _settings = fresh;
 
-            // 两个监听各自对账（端口/证书/启用状态变化即重建），无需重启进程
+            // 三个监听各自对账（端口/证书/启用状态变化即重建），无需重启进程
             ReconcileListeners();
 
             XTrace.WriteLine("[配置热重载] 已重新加载 settings.json：模型 {0} / 供应商 {1}。",
@@ -679,6 +686,7 @@ public class OllamaHttpServer
             ["listeners"] = new Object[]
             {
                 ListenerStatus("local", "http", _settings.Local, _local),
+                ListenerStatus("lanHttp", "http", _settings.LanHttp, _lanHttp),
                 ListenerStatus("lanHttps", "https", _settings.LanHttps, _https),
             },
             ["aggregateLocalOllama"] = _settings.AggregateLocalOllama,
