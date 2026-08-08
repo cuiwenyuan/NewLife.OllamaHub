@@ -39,7 +39,14 @@
 
 ## GitHub Release / 推送
 - 推送 `v*` tag（如 `git tag v1.0.0 && git push origin v1.0.0`）→ `.github/workflows/build.yml` 自动 build+publish+`softprops/action-gh-release@v2`，用内置 GITHUB_TOKEN，无需 PAT。CI 仅覆盖 `Version=tag`，文件版本仍走日期+时间。
-- `github.com:443` 间歇 SNI 阻断：先试常规 `git push origin main`；阻断复现（`curl --max-time 10 https://github.com` 超时）走 `api.github.com` Git Data API（`git credential fill` 取 Fine-grained PAT；用 `curl` 子进程、`--data @file` 写临时文件避 WinError 206）。PAT 已存 credential store(username=cuiwenyuan)。
+- `github.com:443` 间歇 SNI 阻断：先试常规 `git push origin main`；阻断复现（`curl --max-time 10 https://github.com` 超时）走 `api.github.com` Git Data API（`git credential fill` 取 Fine-grained PAT；PAT 已存 credential store，username=cuiwenyuan）。**纯文档/代码提交用 Git Data API 重建 commit 并精确对齐本地 SHA 的步骤（2026-08-08 实测通过）**：
+  1. `git log -1 --format='%an%x00%ae%x00%ad%x00%cn%x00%ce%x00%cd' --date=raw <SHA>` 取作者/提交者/日期；日期转 ISO（`2026-08-08T10:23:06+08:00`）传给 API 即可被还原成 `epoch +0800`。
+  2. **致命坑（中文 Windows）**：Python 读 `git show`/`cat-file` 输出**必须按字节**（`capture_output=True, text=False`）再 `.decode('utf-8')`；用 `text=True` 会按系统默认 **GBK** 解码，把 UTF-8 中文字节弄坏 → blob/tree SHA 全错，但树能重建、commit 仍不匹配。
+  3. 取 blob 内容用 `git show <SHA>:<path>`（字节），逐文件 POST `/git/blobs`(`encoding=utf-8`)。
+  4. 嵌套树用 `base_tree` 增量重建：逐层 `POST /git/trees`（根→`.workbuddy`→`docs` 等），每层 `base_tree` 取父 commit 对应子树 SHA（`git rev-parse <parent>:<path>`），只覆盖变更条目。
+  5. **commit message 必须取原始字节**：`git cat-file commit <SHA>` 后从首个 `committer ...\n\n` 之后切片取消息（含末尾换行）；**不能用 `git log --format=%B`**——它会剥掉末尾换行导致 SHA 不一致。
+  6. `POST /git/commits`(tree/parents/author/committer/message) → `PATCH /git/refs/heads/main`(`force:true`)。远端 SHA 应与本地完全一致，避免 fetch 后分叉。
+  7. SSH 不可用（无 `~/.ssh` 私钥），勿走 22 端口。
 
 ## 战略决策：不引入 NewLife.AI（2026-08-05）
 - 不引入 NewLife.AI（核心库与 ChatAI 网关均不引入）；继续自维护手写适配+Ollama 兼容端点。再评估：① 原生提供 Ollama 兼容服务端；② 非 ASP.NET Core 轻量网关；③ 手写维护成本陡增。
