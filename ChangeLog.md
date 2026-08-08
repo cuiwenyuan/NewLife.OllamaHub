@@ -6,6 +6,39 @@
 
 ---
 
+## [v1.3.0] - 2026-08-07
+
+> Tag：[v1.3.0](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases/tag/v1.3.0)
+
+### 新增
+- **局域网明文 HTTP 监听 `lanHttp`**：新增第三监听节点（默认 `0.0.0.0:11436`，默认禁用，无证书）。与 `local`（本机 HTTP `127.0.0.1:11434`）、`lanHttps`（局域网 HTTPS `0.0.0.0:11435`）共同构成「三监听」架构；各节点独立 `enabled` 启停、独立证书，支持配置热重载对账。详见[配置参考](docs/configuration.md)。
+  - 引入目的：为 VS Copilot 的 “Ollama” BYO 在**局域网**接入提供明文 HTTP 路径（当时作为解决 VS 非 localhost 强制 HTTPS 证书校验失败的 workaround）。
+
+### 变更（配置结构）
+- `HubSettings` 新增 `LanHttp` 节点；`Normalize()` 统一归一化 `local` / `lanHttp` / `lanHttps` 三个子对象（旧顶层字段已删除，见 v1.1.0）。
+
+### 文档
+- 新增 `ChangeLog.md` 记录各发版变化，并接入 `README.md`（「文档」列表增加「更新日志 ChangeLog」链接）。
+- `docs/configuration.md` / `docs/vs-setup.md` / `docs/faq.md` 补充「三监听」与「VS 局域网接入说明」；`/api/status` 输出三监听状态。
+- `self-test` 新增 7 项三监听断言，全量 **211/0** 通过。
+
+### 质量
+- `self-test` 全量 **211/0**；`dotnet build` 0 错误（9 个历史遗留 NRT 警告，本次零新增）。
+
+---
+
+## 文档维护 - 2026-08-08（未发版，commit `0ea4b29`）
+
+> 仅文档更新，未打 tag，未触发 Release。
+
+### 文档
+- **移除 mkcert（方案 A）**：证书生成统一为「纯 PowerShell 自签」，删除全部 mkcert 相关内容（含 `-p12` 写法与「最省心推荐」措辞）。
+- **VS 局域网接入主路径改为证书直连**：经实测，纯 PowerShell 自签证书（IP 写进 `iPAddress` 型 SAN，导出 `hub.cer` 导入 VS 机器「受信任的根证书颁发机构」）后，VS 可直接填 `https://<服务器IP>:11435` 拉到模型列表；`lanHttp` 由此降级为「可选明文备选 / 无法导入证书时的退路」，不再必需。
+- **修正 VS Endpoint URL**：去掉尾部 `/v1`（VS 会自动在其后拼接 `/v1/models`、`/v1/chat/completions` 等路径，带 `/v1` 会变成 `/v1/v1/...` 双路径）；`curl` 连通性测试命令（`.../v1/models`）保留完整路径。
+- 同步更新 `docs/configuration.md` / `docs/vs-setup.md` / `docs/faq.md` 三处相关段落，并同步项目记忆日志。
+
+---
+
 ## [v1.2.0] - 2026-08-07
 
 > Tag：[v1.2.0](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases/tag/v1.2.0)
