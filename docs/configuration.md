@@ -16,7 +16,7 @@
     "certificate": "hub.pfx",         // PFX 路径（相对 settings.json 目录或绝对路径）
     "certPassword": "证书密码（如有）"
   },
-  "lanHttp": {                        // 局域网明文 HTTP 监听（默认禁用，用于 VS "Ollama" BYO 局域网接入）
+  "lanHttp": {                        // 局域网明文 HTTP 监听（默认禁用，可选明文备选；VS 局域网接入推荐 lanHttps + 受信任证书）
     "enabled": false,
     "host": "0.0.0.0",                // 面向局域网
     "port": 11436
@@ -35,7 +35,7 @@
 Hub 把监听拆成三个**独立、可并存、可各自启停**的节点：
 
 - **`local`**：明文 HTTP，默认 `127.0.0.1:11434`，仅本机使用（VS Copilot 本机接入走这里）。默认启用。
-- **`lanHttp`**：明文 HTTP，默认 `0.0.0.0:11436`，面向局域网、**无证书**。默认禁用。用于 Visual Studio 的 “Ollama” BYO 提供商在**局域网**接入（见下方「VS 局域网接入说明」）。
+- **`lanHttp`**：明文 HTTP，默认 `0.0.0.0:11436`，面向局域网、**无证书**。默认禁用。作为**可选的明文备选**监听；VS 在局域网的接入推荐走 `lanHttps` + 受信任证书（见下方「VS 局域网接入说明」）。
 - **`lanHttps`**：TLS HTTPS，默认 `0.0.0.0:11435`，面向局域网。VS / VS Code 的 Copilot 对**非 localhost 地址强制要求 HTTPS**，局域网接入必须启用它并配置证书。默认禁用。
 
 三者可**同时在线**，亦可只开其中任意组合；配置变更经热重载即时生效（无需重启进程）。
@@ -59,27 +59,35 @@ Hub 把监听拆成三个**独立、可并存、可各自启停**的节点：
 ```
 
 - HTTPS 监听复用与主端口完全相同的路由（`/api/*`、`/v1/*`、`/admin`）。
-- 证书须为 **PFX** 格式，且**必须被 VS 所在机器信任**：自签证书需手动导入该系统/浏览器的“受信任的根证书颁发机构”，否则 VS 仍会拒绝连接。
-- 生成自签证书（PowerShell）：
+- 证书须为 **PFX** 格式，且**必须被访问它的每台机器信任**：自签证书需手动导入该系统/浏览器的“受信任的根证书颁发机构”（**不是**“个人”或“中间证书”），否则浏览器/VS 仍会拒绝连接并提示“连接不是私密连接”。
+- ⚠️ 常见坑：`New-SelfSignedCertificate -DnsName "localhost","<服务器IP>"` 会把 `<服务器IP>` 当作 **DNS 名**（dNSName）写进 SAN。当你用 `https://<服务器IP>:11435` 访问时，浏览器要在 SAN 里找 **IP 地址**（iPAddress）条目，找不到就报“名称不匹配”（看起来像未信任）。因此 IP 必须用 `-TextExtension` 显式写进 iPAddress 型 SAN。
+- **生成证书（纯 PowerShell 自签，需在客户端手动导入信任）**：
   ```powershell
-  $c = New-SelfSignedCertificate -DnsName "localhost","<服务器IP>" -CertStoreLocation "Cert:\CurrentUser\My"
+  $c = New-SelfSignedCertificate `
+    -Subject "CN=NewLife.OllamaHub" `
+    -TextExtension @("2.5.29.17={text}IP Address=<服务器IP>&DNS=localhost") `
+    -CertStoreLocation "Cert:\CurrentUser\My"
+  # ① hub.pfx（含私钥）→ 给 Hub 服务端：放 settings.json 同目录，certificate 指向它
   Export-PfxCertificate -Cert $c -FilePath hub.pfx -Password (ConvertTo-SecureString -String "密码" -AsPlainText -Force)
+  # ② hub.cer（仅公钥）→ 给客户端机器：复制到访问机器，装进“受信任的根证书颁发机构”
+  Export-Certificate -Cert $c -FilePath hub.cer
   ```
-  也可用 `mkcert <服务器IP>` 生成受信任证书（配合下方反向代理方案）。
+  把 `hub.cer` 复制到**每一台要访问的机器**（运行 VS 的、打开浏览器的），双击 → 安装证书 → 存储位置选“受信任的根证书颁发机构”。**Firefox 不读系统存储，需在其设置里单独导入**。改完重启浏览器/VS 生效。
+- 验证 SAN：`certutil -dump hub.pfx` 或浏览器点地址栏锁图标 → 证书详情 → “主题备用名称”应包含 `<服务器IP>`（IP 地址类型）与 `localhost`（DNS 类型）。
 - 安全提醒：Hub **不带鉴权**，暴露到局域网即等同把上游 API Key 暴露给同网段任何人。仅限可信网络 / VPN 使用，并妥善保管 Key。
 
 ### VS 局域网接入说明（重要）
 
-Visual Studio 的 “Ollama” Bring-Your-Own 提供商底层是 OpenAI 客户端，依赖 `GET /v1/models` 列模型。它在**非 localhost 地址**上**只允许 HTTPS**，但实际运行时因自签证书校验失败会返回空模型列表（502）。因此：
+Visual Studio 的 “Ollama” Bring-Your-Own 提供商底层是 OpenAI 客户端，依赖 `GET /v1/models` 列模型。它在**非 localhost 地址**上**强制要求 HTTPS**，因此 VS 跨机接入必须使用 **`lanHttps`** 监听并配置一张**被 VS 机器信任**的证书：
 
-1. 在 Hub 启用 **`lanHttp`**（局域网明文 HTTP，端口 `11436`）。
-2. 在 VS 里添加 Ollama 时，**先**填 `https://<服务器IP>:11435/v1` 保存（VS 只接受这种形式）。
-3. 关闭 VS，手动编辑其配置文件（机器上搜索 `ConfiguredBringYourOwnModel_v1.json`），把其中的 `https://...:11435/v1` **改回** `http://<服务器IP>:11436/v1`。
-4. 重新打开 VS，模型列表即可正常加载（后续调用也走 `lanHttp` 明文 HTTP）。
+1. 在 Hub 启用 **`lanHttps`**（端口 `11435`），用上文「证书生成」的纯 PowerShell 自签命令生成证书（IP 写进 iPAddress 型 SAN，并导出 `hub.pfx`/`hub.cer`），并把 `certificate` 指向 PFX。
+2. 将证书公钥 `hub.cer` **导入 VS 所在机器**的「受信任的根证书颁发机构」（双击 → 安装证书 → 选对存储位置）。**这一步是关键**：证书未真正受信任时，VS 会校验失败、模型列表取不到。
+3. 确认网络可达：在 VS 机器 `curl https://<服务器IP>:11435/v1/models`（自测连通性可加 `-k`）应返回模型列表；若不通，检查 Hub 防火墙是否放行 `11435` 入站。
+4. 在 VS 里添加 Ollama，Endpoint URL 填 **`https://<服务器IP>:11435`**（注意**不要**带 `/v1`，VS 会自动在其后拼 `/v1/models` 等路径），保存后即可看到模型列表。无需任何 json 编辑或端口替换。
 
-> 若你已让 `lanHttps` 的证书被 VS 机器**信任**（导入受信任根证书），则可跳过第 2–4 步，直接填 `https://<服务器IP>:11435/v1` 使用原生 HTTPS。
+> 证书一旦受信任，VS 通过原生 HTTPS 直接连 `lanHttps`，模型正常加载；`lanHttp`（明文 11436）仅作为**可选的明文备选**，并非 VS 接入所必需。若你的运行环境无法导入证书（如受控终端），才考虑 `lanHttp` + 隧道/端口转发把 11436 映射为本机 `127.0.0.1`（localhost 豁免 HTTPS 强制）的备选方案。
 
-> **不想启用原生 HTTPS 也不想暴露明文 HTTP 时**：在服务器前置 Caddy（`caddy reverse_proxy localhost:11434` + 自动 HTTPS），VS 填 `https://<服务器IP>:11435`，客户端执行 `caddy trust` 信任其根证书即可。详见 Issue #1。
+> **不想自己管证书时**：在服务器前置 Caddy（`caddy reverse_proxy localhost:11434` + 自动 HTTPS），VS 填 `https://<服务器IP>:11435`，客户端执行 `caddy trust` 信任其根证书即可。详见 Issue #1。
 
 ## providers[]
 

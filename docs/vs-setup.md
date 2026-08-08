@@ -49,25 +49,31 @@ OllamaHub 会把 `settings.json` 里配置的模型以 Ollama 格式暴露出来
 
 ## 局域网接入（VS 在另一台机器）
 
-若 VS 与 OllamaHub **不在同一台机器**，走局域网而非 `localhost`，需要额外处理：
+若 VS 与 OllamaHub **不在同一台机器**，VS 的 “Ollama” BYO 提供商对非 localhost 地址**强制要求 HTTPS**，因此走 **`lanHttps`**（端口 `11435`）+ 一张**被 VS 机器信任**的证书即可，无需任何 json 编辑或端口替换：
 
-VS 的 “Ollama” BYO 提供商对非 localhost 地址**只允许 HTTPS**，但自签证书校验在运行时会导致模型列表取不到（502 / 空）。最简单的解决办法：
-
-1. 在 OllamaHub 的 `settings.json` 启用 **`lanHttp`**（局域网明文 HTTP，默认端口 `11436`，无证书）：
+1. 在 OllamaHub 的 `settings.json` 启用 **`lanHttps`** 并配置证书（见 [configuration.md](configuration.md) 的「证书生成」纯 PowerShell 自签命令，导出 `hub.pfx`/`hub.cer`）：
    ```jsonc
-   { "lanHttp": { "enabled": true, "host": "0.0.0.0", "port": 11436 } }
+   {
+     "lanHttps": {
+       "enabled": true,
+       "host": "0.0.0.0",
+       "port": 11435,
+       "certificate": "hub.pfx",
+       "certPassword": "证书密码（如有）"
+     }
+   }
    ```
-2. 在 VS 里添加 Ollama 时，**先**填 `https://<OllamaHub服务器IP>:11435/v1` 保存（VS 只接受这种形式）。
-3. 关闭 VS，编辑其 `ConfiguredBringYourOwnModel_v1.json`，把其中的 `https://...:11435/v1` **改回** `http://<OllamaHub服务器IP>:11436/v1`（即指向 `lanHttp` 端口）。
-4. 重新打开 VS，模型列表即可正常加载，后续调用也走 `lanHttp` 明文 HTTP。
+2. 把证书**导入 VS 所在机器**的「受信任的根证书颁发机构」（双击 `hub.cer` 安装并选对存储位置）。**这是关键一步**：证书未真正受信任时 VS 会校验失败、模型列表取不到。
+3. 确认网络可达：在 VS 那台机器执行 `curl https://<OllamaHub服务器IP>:11435/v1/models`（自测连通性可加 `-k`）应返回模型列表；拿不到说明证书未受信任或 11435 入站被防火墙挡。
+4. 在 VS 里添加 Ollama，Endpoint URL 直接填 **`https://<OllamaHub服务器IP>:11435`**（注意**不要**带 `/v1`，VS 会自动在其后拼 `/v1/models` 等路径），保存后模型列表即正常加载。
 
-> 若你已把 `lanHttps` 的证书导入 VS 所在机器「受信任的根证书颁发机构」，则可直接填 `https://<服务器IP>:11435/v1` 使用原生 HTTPS，无需第 2–4 步的替换。
+> 证书一旦受信任，VS 通过原生 HTTPS 直连 `lanHttps`，无需 `lanHttp` 或任何配置文件改动。`lanHttp`（明文 11436）仅作为可选的明文备选，并非 VS 接入所必需。
 >
-> 安全提醒：`lanHttp` 为明文 HTTP 且面向局域网，**等同把上游 API Key 暴露给同网段任何人**。仅限可信网络 / VPN 使用，并妥善保管 Key。详见 [configuration.md](configuration.md) 的「三监听」与「VS 局域网接入说明」。
+> 安全提醒：局域网监听面向同网段，Hub 无鉴权，等同把上游 API Key 暴露给同网段任何人。仅限可信网络 / VPN 使用，并妥善保管 Key。
 
 ## 常见问题
 
 - **模型列表为空**：先检查 `/admin` 页面里「模型与用量」是否有模型；若没有，执行 `NewLife.OllamaHub.exe presets deepseek --write` 生成预设，并用 `k` 菜单或 `setkey` 命令填入 API Key。
 - **连接失败 / 模型加载不出**：确认服务已启动，且 VS 与 OllamaHub 在同一台机器（或访问 `localhost`）。
-- **局域网添加 Ollama 后模型出不来**：这是 VS 对自签 HTTPS 强制校验所致，按上文「局域网接入」用 `lanHttp` + 改配置文件的 workaround 解决；或让 `lanHttps` 证书被 VS 机器信任。
+- **局域网添加 Ollama 后模型出不来**：几乎都是证书未被 VS 机器真正信任所致（VS 对非 localhost 强制 HTTPS，证书校验失败就拿不到模型）。按上文「局域网接入」生成证书并把公钥导入 VS 机器的「受信任的根证书颁发机构」即可；`lanHttp`（明文 11436）只是可选的明文备选，并非必需。
 - **没有 Ollama 选项**：更新 Visual Studio / GitHub Copilot 扩展至较新版本；部分旧版本不支持 Bring Your Own Model。

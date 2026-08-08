@@ -16,9 +16,9 @@
 ## 配置与三监听（2026-08-06 双监听；2026-08-07 加 lanHttp）
 - `HubSettings` 三独立节点（不向后兼容）：`Local`（明文 HTTP，默认 enabled/127.0.0.1/11434）+ `LanHttp`（明文 HTTP，默认 disabled/0.0.0.0/11436/无证书）+ `LanHttps`（TLS，默认 disabled/0.0.0.0/11435/`certificate`(PFX)/`certPassword`）。旧顶层 `url`/`host`/`port`/`httpsPort`/`certificate`/`certPassword` **已删，不再兼容**。`Normalize()` 归一化三子对象；`ProviderPresets` 默认构造改无参 `new HubSettings()`。
 - `OllamaHttpServer` 三 `HttpServer`：`_local`(Local) + `_lanHttp`(LanHttp，无证书) + `_https`(LanHttps，证书缺失告警跳过)；`ReconcileListeners()` 逐监听对账 enabled/地址/证书，失败回退，无需重启；`HandleStatus` 输出 `listeners[]`(name/scheme/enabled/url/bound)。
-- **VS 局域网接入 bug（2026-08-07 修复）**：VS "Ollama" BYO 是非 localhost 强制 HTTPS 的 OpenAI 客户端，走 `GET /v1/models` 列模型；自签 `lanHttps` 运行时证书校验失败→模型列表空。修复=新增 `lanHttp` 明文 HTTP 节点（默认 11436），用户启用后按 workaround：VS 里先填 `https://<IP>:11435/v1` 保存→改其 `ConfiguredBringYourOwnModel_v1.json` 把 https 改回 `http://<IP>:11436/v1`→重启 VS，模型即出。根因非 Hub 端点返回空（两端点实测均正常）。文档见 `docs/configuration.md`「三监听」+「VS 局域网接入说明」、`docs/vs-setup.md`「局域网接入」、`docs/faq.md`。
+- **VS 局域网接入（证书受信任 = 原生 HTTPS 直连，无需 lanHttp 替换）**：VS "Ollama" BYO 是非 localhost 强制 HTTPS 的 OpenAI 客户端，走 `GET /v1/models` 列模型。**正确做法**：启用 `lanHttps`（11435）+ 一张**被 VS 机器信任**的证书（纯 PowerShell 自签已实测可用：生成时 IP 写进 iPAddress 型 SAN，导出 `hub.cer` 导入 VS 机器「受信任的根证书颁发机构」），VS 直接填 `https://<IP>:11435`（**Endpoint URL 不带 `/v1`**，VS 自动拼接）即可拉到模型。**之前那条"证书在 VS 里不行、需 lanHttp 替换"的 workaround 是错误的**——证书一旦受信任，原生 HTTPS 完全可用，lanHttp 只是可选明文备选，并非必需。文档见 `docs/configuration.md`「三监听」+「VS 局域网接入说明」、`docs/vs-setup.md`「局域网接入」、`docs/faq.md`。
 - `SecretProtector` 实为 BCL AES-256-CBC 机器绑定（盐 `NewLife.OllamaHub::v1::`+MachineName），非 DPAPI；优先级 明文>`env:NAME`>`dpapi:<base64>`>明文。
-- 证书须被 VS 信任（自签导入受信任根）；Hub 无鉴权，暴露局域网=Key 暴露，**仅限可信网络/VPN**。
+- 证书须被 VS 机器**真正**信任（自签导出 `hub.cer` 导入「受信任的根证书颁发机构」；存储位置错装成"个人"则仍报未信任）；Hub 无鉴权，暴露局域网=Key 暴露，**仅限可信网络/VPN**。
 
 ## 供应商预设与模型名
 - `ProviderPresets.cs` 内置 11 家：9 OpenAI 兼容(deepseek/qwen/kimi/glm/siliconflow/volcengine/hunyuan/modelscope/openrouter)+anthropic+gemini。
