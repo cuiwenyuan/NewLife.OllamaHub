@@ -78,9 +78,7 @@ public class HubAgentService : ServiceBase
             foreach (var p in ProviderPresets.All)
                 Console.WriteLine("  {0,-12} {1}", p.Id, p.Name);
             Console.WriteLine();
-            Console.Write("请输入要启用的供应商 id（空格分隔多个；输入 all 启用全部）：");
-            Console.Out.Flush();
-            var ids = PickPresetIds();
+            var ids = PickPresetIds("请输入要启用的供应商 id（空格分隔多个；输入 all 启用全部）：");
             if (ids == null) return;
 
             var args = new List<String> { "presets" };
@@ -95,6 +93,7 @@ public class HubAgentService : ServiceBase
                 Console.Out.Flush();
                 var key = Console.ReadKey(intercept: true).KeyChar;
                 Console.WriteLine(key);
+                ClearInputBuffer();
                 if (!"yY".Contains(key))
                 {
                     Console.WriteLine("已取消。可先备份旧配置，或用 K 菜单单独配置密钥。");
@@ -173,9 +172,12 @@ public class HubAgentService : ServiceBase
                 Console.Out.Flush();
                 var ack = Console.ReadKey(intercept: true).KeyChar;
                 Console.WriteLine(ack);
+                ClearInputBuffer();
                 if ("yY".Contains(ack))
                 {
-                    chosenIds = PickPresetIds();
+                    Console.WriteLine();
+                    Console.WriteLine("请重新选择要启用的供应商（输入 id，空格分隔多个；输入 all 启用全部）：");
+                    chosenIds = PickPresetIds("请输入：");
                     if (chosenIds == null) return;
                     var pargs = new List<String> { "presets" };
                     pargs.AddRange(chosenIds);
@@ -191,7 +193,16 @@ public class HubAgentService : ServiceBase
             }
             else
             {
-                chosenIds = PickPresetIds();
+                Console.WriteLine();
+                Console.WriteLine("首次配置，请先选择要启用的供应商。");
+                Console.WriteLine("输入规则：");
+                Console.WriteLine("  · 输入一个或多个供应商 id，用空格/逗号/分号分隔");
+                Console.WriteLine("  · 输入 all 启用全部供应商");
+                Console.WriteLine("  · 直接回车取消");
+                Console.WriteLine("可选供应商：");
+                foreach (var p in ProviderPresets.All)
+                    Console.WriteLine("  {0,-12} {1}", p.Id, p.Name);
+                chosenIds = PickPresetIds("请输入：");
                 if (chosenIds == null) return;
                 var pargs = new List<String> { "presets" };
                 pargs.AddRange(chosenIds);
@@ -218,10 +229,21 @@ public class HubAgentService : ServiceBase
         }
     }
 
-    /// <summary>从控制台读取并解析供应商 id 选择（支持 all / 空格或逗号分隔多个）。</summary>
-    /// <returns>选中的 id 列表；用户直接回车取消时返回 null。</returns>
-    private static List<String>? PickPresetIds()
+    /// <summary>清空控制台输入缓冲区中残留的按键（如 ReadKey 后的回车符），避免后续 ReadLine 误读空行。</summary>
+    private static void ClearInputBuffer()
     {
+        while (Console.KeyAvailable) Console.ReadKey(intercept: true);
+    }
+
+    /// <summary>从控制台读取并解析供应商 id 选择（支持 all / 空格或逗号分隔多个）。</summary>
+    /// <param name="prompt">显示给用户的输入提示。</param>
+    /// <returns>选中的 id 列表；用户直接回车取消时返回 null。</returns>
+    private static List<String>? PickPresetIds(String prompt)
+    {
+        // 菜单选择用 Console.ReadKey 只读一个字符，用户按 Enter 后的回车符会留在输入缓冲区；
+        // 若不清空，下一次 Console.ReadLine 会立即读到空行，导致向导直接取消。
+        ClearInputBuffer();
+        Console.Write(prompt);
         Console.Out.Flush();
         var line = (Console.ReadLine() ?? "").Trim();
         if (String.IsNullOrEmpty(line)) { Console.WriteLine("未输入任何供应商 id，已取消。"); return null; }

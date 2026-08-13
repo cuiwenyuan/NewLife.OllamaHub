@@ -6,6 +6,24 @@
 
 ---
 
+## [v1.3.1] - 2026-08-13
+
+> Tag：[v1.3.1](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases/tag/v1.3.1)
+
+### 修复（交互配置向导）
+- **修复向导“一闪取消”**：菜单用 `Console.ReadKey` 读字符后，用户按 Enter 的回车符残留在输入缓冲区，导致向导内部 `ReadLine` 立即读到空行、误判“未输入供应商 id，已取消”。已在读取前清空输入缓冲区。
+- **修复首次配置提示不明确**：`c` 配置向导在首次配置（无 `settings.json`）时直接等待输入却无任何提示，用户不知该键入什么。现已在向导中打印明确的输入规则（单个 / 空格逗号分号分隔多个 / `all` 启用全部 / 回车取消）并列出全部 11 家内置供应商的 id 与名称。
+- **修复残留回车跳过首个 API Key**：`ReadKey` 后的回车残留会在沿用现有配置时跳过向导中第一个供应商的 Key 输入；已统一在每次 `ReadKey` 后清空输入缓冲区。
+- 涉及文件：`src/NewLife.OllamaHub/HubAgentService.cs`（`PickPresetIds` 增加 `prompt` 参数、新增 `ClearInputBuffer` 辅助方法、`ConfigureWizard` 首次/覆盖/沿用分支均补清晰引导）。
+
+### 文档
+- `docs/install-as-service.md`「配置大模型」一节：补全 `c` 配置向导的交互流程说明（输入规则、供应商列表、逐家填 Key、已存在配置时的覆盖询问），与修复后的交互一致。
+
+### 质量
+- `self-test` 全量 **211/0**；`dotnet build` 0 错误（9 个历史遗留 NRT 警告，本次零新增）。
+
+---
+
 ## [v1.3.0] - 2026-08-07
 
 > Tag：[v1.3.0](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases/tag/v1.3.0)
