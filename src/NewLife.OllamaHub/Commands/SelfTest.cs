@@ -57,6 +57,7 @@ namespace NewLife.OllamaHub.Commands
             // ---- M2：流式桥接 / 工具调用 / schema 清洗 ----
             CheckStreamTranslation();
             CheckStreamTranslationGenerate();
+            CheckStreamOptionsPassthrough();
             CheckToolSchemaSanitizer();
             CheckToolForwarding();
 
@@ -368,6 +369,22 @@ namespace NewLife.OllamaHub.Commands
             onReq.messages.Add(new OllamaMessage { role = "user", content = "hi" });
             var on = OpenAiAdapter.BuildOpenAiRequest(onReq, new ModelOptions { Id = "m1" }, forceStream: true);
             Assert("forceStream：客户端 true 仍为 stream:true", on.Contains("\"stream\":true"));
+        }
+
+        /// <summary>v0.32.6 对齐：stream_options（含 include_usage）须原样透传上游，使上游以独立块返回 usage；缺省时不下发该字段。</summary>
+        private static void CheckStreamOptionsPassthrough()
+        {
+            var withOpts = new OllamaChatRequest { model = "m1", stream = true };
+            withOpts.messages.Add(new OllamaMessage { role = "user", content = "hi" });
+            withOpts.stream_options = new Dictionary<String, Object?> { ["include_usage"] = true };
+            var on = OpenAiAdapter.BuildOpenAiRequest(withOpts, new ModelOptions { Id = "m1" });
+            Assert("stream_options 透传：含 stream_options 字段", on.Contains("\"stream_options\""));
+            Assert("stream_options 透传：含 include_usage", on.Contains("\"include_usage\""));
+
+            var noOpts = new OllamaChatRequest { model = "m1", stream = true };
+            noOpts.messages.Add(new OllamaMessage { role = "user", content = "hi" });
+            var off = OpenAiAdapter.BuildOpenAiRequest(noOpts, new ModelOptions { Id = "m1" });
+            Assert("stream_options 透传：缺省时不下发该字段", !off.Contains("\"stream_options\""));
         }
 
         /// <summary>M2：逐块 SSE → 累积 Ollama 帧（done:false → done:true + usage）。</summary>

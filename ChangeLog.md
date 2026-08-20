@@ -6,6 +6,23 @@
 
 ---
 
+## [v1.3.2] - 2026-08-20
+
+> Tag：[v1.3.2](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases/tag/v1.3.2)
+
+### 修复与增强
+- **诊断响应头全端点一致**：`HandleGenerate` 此前全程漏调 `SetDiagnosticHeaders`，现已补齐 `ollama 透传 / fallback / 流式 / 非流式` 四个分支，所有端点均注入 `X-Proxy-Requested-Model` / `X-Proxy-Resolved-Model` / `X-Proxy-Provider` / `X-Proxy-Upstream-Mode`（排障时一眼看出路由到哪家供应商、哪个模型）。
+- **OpenAI 兼容端点对齐 Ollama v0.32.6**：此前未把客户端 `stream_options`（含 `include_usage`）透传给上游，导致 `usage` 独立块缺失。现已在 `OpenAiChatRequest` / `OllamaChatRequest` 增加 `stream_options` 字段，经 `ToOllamaRequest` → `OpenAiAdapter.BuildOpenAiRequest` 透传（仅 openai 上游生效，原生 / anthropic / gemini 不受影响）。原生 `/api/chat` 帧格式 v0.32.6 未变更，本项目的 `OllamaStreamTranslator` 行为保持正确。
+
+### 文档
+- `docs/architecture.md` / `docs/vs-setup.md`：VS Code 1.127+ 已弃用内置 Ollama 提供程序（[microsoft/vscode#299907](https://github.com/microsoft/vscode/issues/299907)），引导 VS Code 用户改走「自定义端点（Chat Completions）」`http://localhost:11434/v1/chat/completions` 或官方 Ollama 扩展；新增「VS Code（1.127+）接入」整节。Visual Studio 的 Ollama BYO 路径不受影响。
+- `docs/faq.md` / `docs/vs-setup.md`：**新增 Visual Studio 版本要求**——Ollama（Bring Your Own Model）提供程序是 **Visual Studio 2026（18.6.0+）** 才引入的能力，**Visual Studio 2022（17.x）内置的 Copilot Chat 没有 Ollama 选项、也无法手动添加**；需升级到 VS 2026，或改用 VS Code 自定义端点（不依赖 VS 的 Ollama 提供程序）。
+
+### 质量
+- `self-test` 全量 **214/0**（新增 3 条 `stream_options` 透传断言）；`dotnet build` 0 错误（既有 NRT 警告，零新增）。
+
+---
+
 ## [v1.3.1] - 2026-08-13
 
 > Tag：[v1.3.1](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases/tag/v1.3.1)

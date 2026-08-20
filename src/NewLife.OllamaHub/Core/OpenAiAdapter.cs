@@ -89,6 +89,10 @@ public static class OpenAiAdapter
             ["stream"] = forceStream ? true : req.stream,
         };
 
+        // v0.32.6 对齐：原样透传 stream_options（含 include_usage），
+        // 上游据此以独立块返回 usage（客户端显式请求时才给，符合 OpenAI 规范）。
+        if (req.stream_options != null) oa["stream_options"] = req.stream_options;
+
         // P0-3：reasoning_effort 仅在 openai 上游生效（o-series 等），客户端不 forwards 该字段，
         // 故只要模型配置了即下发（受 OverrideClientParams 语义一致：缺省即填、强制即覆盖）。
         if (!String.IsNullOrEmpty(model.ReasoningEffort))
@@ -339,6 +343,9 @@ public class OpenAiChatRequest
 
     /// <summary>工具选择策略（auto / none / 指定函数），原样透传上游。</summary>
     public Object? tool_choice { get; set; }
+
+    /// <summary>流式选项（含 include_usage），原样透传上游。v0.32.6 起 OpenAI 兼容端点仅在 include_usage 时以独立块返回 usage。</summary>
+    public Object? stream_options { get; set; }
 }
 
 /// <summary>OpenAI 消息。</summary>

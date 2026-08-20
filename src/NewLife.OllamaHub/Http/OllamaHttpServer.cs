@@ -452,10 +452,11 @@ public class OllamaHttpServer
             // 真实 Ollama 透传
             if (String.Equals(provider.ApiMode, "ollama", StringComparison.OrdinalIgnoreCase))
             {
-                var upstream = CallUpstreamRaw(provider, ReadBody(ctx));
-                UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
-                WriteRaw(ctx, upstream, HttpStatusCode.OK);
-                return;
+            var upstream = CallUpstreamRaw(provider, ReadBody(ctx));
+            UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
+            SetDiagnosticHeaders(ctx, greq.model, model, provider, "ollama");
+            WriteRaw(ctx, upstream, HttpStatusCode.OK);
+            return;
             }
 
             var adapter = UpstreamAdapterFactory.Get(provider.ApiMode);
@@ -465,20 +466,23 @@ public class OllamaHttpServer
             var fallback = CallUpstreamStream(provider, model, oaReq, chunk => frames.Append(acc.Consume(chunk)).Append('\n'));
             if (fallback != null)
             {
-                UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
-                var oaLike = adapter.ConvertNonStream(fallback, model);
-                WriteRaw(ctx, OpenAiAdapter.ToOllamaGenerateNdJson(oaLike, model), HttpStatusCode.OK);
-                return;
+            UsageStats.Instance.RecordSuccess(model.Id, 0, 0);
+            var oaLike = adapter.ConvertNonStream(fallback, model);
+            SetDiagnosticHeaders(ctx, greq.model, model, provider, provider.ApiMode);
+            WriteRaw(ctx, OpenAiAdapter.ToOllamaGenerateNdJson(oaLike, model), HttpStatusCode.OK);
+            return;
             }
 
             if (chat.stream)
             {
                 // 流式：末帧只发结束信号（done:true，response 为空），与真实 Ollama 流式一致
                 frames.Append(acc.Finalize(false)).Append('\n');
+                SetDiagnosticHeaders(ctx, greq.model, model, provider, provider.ApiMode);
                 WriteRaw(ctx, frames.ToString(), HttpStatusCode.OK);
             }
             else
             {
+                SetDiagnosticHeaders(ctx, greq.model, model, provider, provider.ApiMode);
                 WriteRaw(ctx, acc.Finalize(), HttpStatusCode.OK);
             }
             var usage = acc.Usage;
@@ -628,6 +632,7 @@ public class OllamaHttpServer
         if (opts.Count > 0) ollama.options = opts;
         ollama.tools = req.tools;
         ollama.tool_choice = req.tool_choice;
+        ollama.stream_options = req.stream_options;
         return ollama;
     }
 

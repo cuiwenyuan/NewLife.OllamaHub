@@ -2,7 +2,13 @@
 
 ## 为什么不需要 IDE 插件
 
-Visual Studio 2026（18.6.0+）与 VS Code（Copilot Chat 0.41+）的 Copilot Chat 内置 **Ollama 提供程序**：在模型下拉 → 管理模型 → 提供程序选 Ollama，端点填 `http://localhost:11434`，IDE 就会把该端点当作本地 Ollama 拉取模型列表。
+Visual Studio 2026（18.6.0+）的 Copilot Chat 内置 **Ollama 提供程序（BYOM）**：在模型下拉 → 管理模型 → 提供程序选 Ollama，端点填 `http://localhost:11434`，IDE 就会把该端点当作本地 Ollama 拉取模型列表。
+
+> **VS Code 用户请注意（1.127+）**：VS Code 的**内置 Ollama 提供程序已在 1.127 版本弃用**（[microsoft/vscode#299907](https://github.com/microsoft/vscode/issues/299907)）。不要再走「模型下拉 → Ollama 提供程序」这条原生 Ollama 路径，改为以下两种（OllamaHub 均已支持）：
+> - **自定义端点（Chat Completions，推荐）**：在 VS Code「语言模型」编辑器 → 添加模型 → 选「自定义端点」，供应商类型选 **OpenAI 兼容**，端点填 `http://localhost:11434/v1/chat/completions`。OllamaHub 已实现 OpenAI 兼容面（`/v1/chat/completions` + `/v1/models`）。
+> - **官方 Ollama 扩展**：从 VS Marketplace 安装 Ollama 官方扩展，指向本机 `http://localhost:11434`（Ollama 原生协议面）。
+>
+> 详见 [vs-setup.md](vs-setup.md) 的「VS Code（1.127+）接入」一节。
 
 因此只要本机有一个“长得像 Ollama”的 HTTP 服务，Copilot 会自动把配置好的模型列出来，并在对话时把请求发过来。NewLife.OllamaHub 就是这个伪装服务。
 

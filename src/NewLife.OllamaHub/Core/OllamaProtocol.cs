@@ -153,6 +153,9 @@ public class OllamaChatRequest
     /// <summary>是否流式。M1 统一以 NDJSON 单帧（done:true）响应，兼容两种客户端。</summary>
     public Boolean stream { get; set; } = true;
 
+    /// <summary>流式选项（含 include_usage），原样透传上游。v0.32.6 起 OpenAI 兼容端点仅在 include_usage 时以独立块返回 usage。</summary>
+    public Object? stream_options { get; set; }
+
     /// <summary>模型驻留时长（本代理忽略）。</summary>
     public Object? keep_alive { get; set; }
 }
