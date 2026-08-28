@@ -23,6 +23,10 @@
 
 ### 质量
 - `self-test` 新增 `CheckPresetModelIds` 防漂移断言：对 12 家供应商的标志性模型 Id 做存在性校验，误改名/误删会立即 FAIL，把"静默漂移"变成可见回归。全量 **271/0**（含新增 ~42 条断言）。
+- `self-test` 新增 `CheckToolCallIdRequestPassthrough`：验证上游 OpenAI 请求中 tool 消息带 `tool_call_id` 且与 assistant `tool_calls` 的 id 对应（DeepSeek 等强制要求，缺失即 400）。
+
+### 修复
+- **调用 DeepSeek（含工具调用）返回 400 `missing field tool_call_id`**：根因为三层叠加——① `OpenAiMessage` 类原本没有 `tool_call_id` 属性，入站 `/v1/chat/completions` 的 `tool_call_id` 未被解析；② `ToOllamaRequest`（OpenAI→Ollama 转换）未透传 `tool_call_id`；③ `OpenAiAdapter.BuildOpenAiRequest` 构造上游消息时，对 `role:"tool"` 只写 `role`+`content` 而从不输出 `tool_call_id`。现已补齐：解析端加属性、转换端透传、构造端输出 `tool_call_id`（优先用入站值，缺失时按最近 assistant 的 `tool_calls` 顺序合成 `call_0`/`call_1`… 并严格配对）。这样即使客户端未下发 `tool_call_id`（如 Ollama 原生格式），也能生成合规请求，避免对 DeepSeek/OpenAI 兼容上游 400。
 
 ### 示例与文档
 - `examples/` 新增 `settings.newmodels.json`（汇集本次新增模型 + Z.ai 通道）；`settings.gemini.json`、`settings.qwen-kimi-glm.json` 更新为当前模型。
