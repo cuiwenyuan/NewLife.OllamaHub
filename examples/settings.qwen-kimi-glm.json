@@ -20,7 +20,7 @@
     },
     {
       "id": "glm",
-      "name": "智谱 GLM",
+      "name": "智谱 GLM (BigModel)",
       "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
       "apiMode": "openai",
       "apiKey": "",
@@ -28,11 +28,19 @@
     }
   ],
   "models": [
-    { "id": "qwen-plus", "ownedBy": "qwen", "displayName": "通义千问 Plus", "family": "qwen", "provider": "qwen", "contextLength": 131072, "maxTokens": 8192, "tools": true },
-    { "id": "qwen-max", "ownedBy": "qwen", "displayName": "通义千问 Max", "family": "qwen", "provider": "qwen", "contextLength": 32768, "maxTokens": 8192, "tools": true },
-    { "id": "moonshot-v1-8k", "ownedBy": "kimi", "displayName": "Kimi M1 8K", "family": "moonshot", "provider": "kimi", "contextLength": 8192, "maxTokens": 4096, "tools": true },
-    { "id": "moonshot-v1-32k", "ownedBy": "kimi", "displayName": "Kimi M1 32K", "family": "moonshot", "provider": "kimi", "contextLength": 32768, "maxTokens": 4096, "tools": true },
-    { "id": "glm-4-plus", "ownedBy": "glm", "displayName": "智谱 GLM-4 Plus", "family": "glm", "provider": "glm", "contextLength": 131072, "maxTokens": 4096, "tools": true },
-    { "id": "glm-4-flash", "ownedBy": "glm", "displayName": "智谱 GLM-4 Flash", "family": "glm", "provider": "glm", "contextLength": 131072, "maxTokens": 4096, "tools": true }
+    { "id": "qwen3.8-max", "ownedBy": "qwen", "displayName": "通义千问 Qwen3.8 Max", "family": "qwen", "provider": "qwen", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true },
+    { "id": "qwen3.8-flash", "ownedBy": "qwen", "displayName": "通义千问 Qwen3.8 Flash", "family": "qwen", "provider": "qwen", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true },
+    { "id": "qwen3.8-27b", "ownedBy": "qwen", "displayName": "通义千问 Qwen3.8 27B", "family": "qwen", "provider": "qwen", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true },
+    { "id": "qwen3.7-plus", "ownedBy": "qwen", "displayName": "通义千问 Qwen3.7 Plus", "family": "qwen", "provider": "qwen", "contextLength": 128000, "maxTokens": 8192, "tools": true },
+    { "id": "qwen3.7-flash", "ownedBy": "qwen", "displayName": "通义千问 Qwen3.7 Flash", "family": "qwen", "provider": "qwen", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true },
+
+    { "id": "kimi-k3", "ownedBy": "kimi", "displayName": "Kimi K3", "family": "kimi", "provider": "kimi", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true, "thinking": true, "includeReasoningInRequest": false },
+    { "id": "kimi-k2.7-code", "ownedBy": "kimi", "displayName": "Kimi K2.7 Code", "family": "kimi", "provider": "kimi", "contextLength": 256000, "maxTokens": 8192, "tools": true, "vision": true, "thinking": true, "includeReasoningInRequest": false },
+    { "id": "kimi-k2.6", "ownedBy": "kimi", "displayName": "Kimi K2.6", "family": "kimi", "provider": "kimi", "contextLength": 256000, "maxTokens": 8192, "tools": true, "vision": true, "thinking": true, "includeReasoningInRequest": false },
+
+    { "id": "glm-5.3", "ownedBy": "glm", "displayName": "GLM-5.3", "family": "glm", "provider": "glm", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true },
+    { "id": "glm-5.3-flash", "ownedBy": "glm", "displayName": "GLM-5.3 Flash", "family": "glm", "provider": "glm", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true, "thinking": true, "includeReasoningInRequest": false },
+    { "id": "glm-5.2", "ownedBy": "glm", "displayName": "GLM-5.2", "family": "glm", "provider": "glm", "contextLength": 1000000, "maxTokens": 8192, "tools": true },
+    { "id": "glm-4.7", "ownedBy": "glm", "displayName": "GLM-4.7", "family": "glm", "provider": "glm", "contextLength": 200000, "maxTokens": 8192, "tools": true }
   ]
 }
