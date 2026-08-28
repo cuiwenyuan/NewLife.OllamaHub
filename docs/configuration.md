@@ -189,10 +189,10 @@ Hub 内置统一适配层，把不同上游响应翻译成 Ollama 兼容帧。�
 
 ## 内置供应商预设（presets 命令）
 
-不想手写 `providers`/`models`？用内置 `presets` 子命令一键生成脚手架（11 家全内置，见 `docs/providers.md`）：
+不想手写 `providers`/`models`？用内置 `presets` 子命令一键生成脚手架（12 家全内置，见 `docs/providers.md`）：
 
 ```bat
-NewLife.OllamaHub.exe presets                 # 列出全部 11 家（id / 名称 / baseUrl）
+NewLife.OllamaHub.exe presets                 # 列出全部 12 家（id / 名称 / baseUrl）
 NewLife.OllamaHub.exe presets deepseek       # 输出含 deepseek 供应商与已知模型的 settings.json（不含密钥）
 NewLife.OllamaHub.exe presets deepseek --write       # 直接写入程序目录 settings.json（已存在则拒绝）
 NewLife.OllamaHub.exe presets deepseek --write --force  # 强制覆盖

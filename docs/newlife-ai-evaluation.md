@@ -11,7 +11,7 @@
 
 **NewLife.AI 能覆盖 OllamaHub 约 50–60% 的代码量（上游调用 + 协议归一化那一半），但 0% 覆盖其独有价值（Ollama 兼容代理 + VS Copilot 桥接 + 轻量服务 + P0 路由/诊断）。**
 
-- ✅ **可被覆盖且超越**：上游多协议调用与归一化、工具调用、多模态、reasoning 透传、上游重试。NewLife.AI 内置 **46 家**服务商（OllamaHub 仅 11 家预设），且是**纯 NewLife.Core/NewLife.Remoting 库，无 ASP.NET Core**，完全契合 OllamaHub 的硬约束。
+- ✅ **可被覆盖且超越**：上游多协议调用与归一化、工具调用、多模态、reasoning 透传、上游重试。NewLife.AI 内置 **46 家**服务商（OllamaHub 仅 12 家预设），且是**纯 NewLife.Core/NewLife.Remoting 库，无 ASP.NET Core**，完全契合 OllamaHub 的硬约束。
 - ❌ **不可被覆盖（OllamaHub 独有护城河）**：**Ollama 兼容端点**（`/api/chat`、`/api/tags`、`/api/generate`）。这是 OllamaHub 存在根本意义——它让 **VS Copilot 的「Ollama」BYO 提供商（底层打 `/v1/*`）** 与**真实 Ollama 客户端（打 `/api/*`）** 同时可用。`NewLife.ChatAI` 网关只暴露 OpenAI/Anthropic/Gemini 协议，**没有 Ollama 协议面**。
 - ⚠️ **需 OllamaHub 自行保留**：推理多轮缓存重注、X-Proxy 诊断头、force-mode 强制覆盖、配置热重载、密钥机器绑定、Windows 服务化、self-test、国内模型名维护。
 
@@ -49,7 +49,7 @@
 - **Ollama 兼容面**：`/api/tags`、`/api/chat`、`/api/generate`（NDJSON 流式）
 - **OpenAI 兼容面**：`POST /v1/chat/completions`、`GET /v1/models`（SSE 流式 / 单 JSON）
 
-并把请求路由到多家上游（openai/anthropic/gemini/google，11 家预设），归一化后翻译回 Ollama 或 OpenAI 形状，供 **GitHub Copilot / VS / VS Code** 使用。
+并把请求路由到多家上游（openai/anthropic/gemini/google，12 家预设），归一化后翻译回 Ollama 或 OpenAI 形状，供 **GitHub Copilot / VS / VS Code** 使用。
 
 逐项判定：✅ 覆盖 / ⚠️ 部分覆盖 / ❌ 不覆盖。
 
@@ -60,7 +60,7 @@
 | # | OllamaHub 核心功能 | NewLife.AI 覆盖 | 说明 |
 |---|-------------------|:---:|------|
 | 1 | **本地代理服务**：同时暴露 Ollama `/api/*` 与 OpenAI `/v1/*`（端口 11434） | ❌ | `NewLife.ChatAI` 网关仅 OpenAI/Anthropic/Gemini，**无 Ollama 协议面**；且它是 ASP.NET Core，违反 OllamaHub「无 ASP.NET Core」硬约束 |
-| 2 | **多供应商上游适配**（11 家预设：deepseek/qwen/kimi/glm/volcengine/hunyuan/siliconflow/openrouter/anthropic/gemini + openai） | ✅ 超越 | NewLife.AI 内置 **46 家**，含独立协议的 openai/anthropic/gemini/dashscope/ollama/bedrock + 37 OpenAI 兼容；`[AiClient]` 特性自动注册 |
+| 2 | **多供应商上游适配**（12 家预设：deepseek/qwen/kimi/glm/zhipu/volcengine/hunyuan/siliconflow/openrouter/anthropic/gemini + openai） | ✅ 超越 | NewLife.AI 内置 **46 家**，含独立协议的 openai/anthropic/gemini/dashscope/ollama/bedrock + 37 OpenAI 兼容；`[AiClient]` 特性自动注册 |
 | 3 | **上游 SSE → 统一 OpenAI 形状 → 再翻译**为 Ollama NDJSON 或 OpenAI 单 JSON | ✅ 覆盖 | `IChatClient` 天然把各家响应归一化；OllamaHub 可省去 `OllamaStreamTranslator` 手写 SSE 解析（但仍需把 `IChatClient` 结果**翻译回 Ollama NDJSON**——见 §4.2） |
 | 4 | **推理内容多轮缓存与重注入**（P0-1） | ⚠️ 部分 | NewLife.AI 透传 `reasoning_content`；但「跨轮缓存并重注入上游」属代理层逻辑，ChatAI 用「记忆系统」机制，不直接等价 |
 | 5 | **诊断响应头 `X-Proxy-*`**（P0-2） | ❌ | 代理层诊断，NewLife.AI 不涉及 |

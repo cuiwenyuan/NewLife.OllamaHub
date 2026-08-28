@@ -6,6 +6,30 @@
 
 ---
 
+## [v1.3.3]（待发布）
+
+### 供应商预设升级（2026-08 模型刷新）
+- **GLM 拆分为双供应商**：保留 `glm`（智谱 BigModel `open.bigmodel.cn/api/paas/v4`），新增 `zhipu`（智谱 Z.ai `api.z.ai/v1`，OpenAI 兼容），两者镜像同一 GLM 模型集，用户可按密钥/配额二选一或同时启用。内置供应商总数 11 → **12**。
+- **9 家供应商模型刷新**：
+  - `deepseek`：新增 `deepseek-v4-flash-vision-exp`（实验多模态）。
+  - `siliconflow`：新增 `Qwen/Qwen3-235B-A22B-Instruct`、`deepseek-ai/DeepSeek-V3.1`。
+  - `volcengine`：新增统一 ID 思考模型 `doubao-seed-evolving`（1M 上下文）。
+  - `hunyuan`：新增 `hunyuan-hy4-preview`（2026-08 开源 Hy4 系列）。
+  - `modelscope`：基址修正为 API-Inference 域名 `api-inference.modelscope.cn/v1`，新增 `Qwen/Qwen3-235B-A22B-Instruct`、`deepseek-ai/DeepSeek-V3.1`。
+  - `openrouter`：模型迭代为 `openai/gpt-5.6` / `anthropic/claude-opus-5` / `google/gemini-3.7-flash`（旧 `gpt-4o` / `claude-3.5-sonnet` / `gemini-pro-1.5` 已弃用）。
+  - `anthropic`：新增 `claude-fable-5`。
+  - `gemini`：迭代为 `gemini-3.1-pro-preview` / `gemini-3.7-flash` / `gemini-3.5-flash-lite`（2.5 系列退役）。
+  - `kimi`：保持 `kimi-k3` / `kimi-k2.7-code` / `kimi-k2.6` 当前集。
+
+### 质量
+- `self-test` 新增 `CheckPresetModelIds` 防漂移断言：对 12 家供应商的标志性模型 Id 做存在性校验，误改名/误删会立即 FAIL，把"静默漂移"变成可见回归。全量 **271/0**（含新增 ~42 条断言）。
+
+### 示例与文档
+- `examples/` 新增 `settings.newmodels.json`（汇集本次新增模型 + Z.ai 通道）；`settings.gemini.json`、`settings.qwen-kimi-glm.json` 更新为当前模型。
+- `docs/providers.md`、`README.md`、`docs/configuration.md`、`docs/install-as-service.md`、`docs/README.md`、`docs/newlife-ai-evaluation.md`：供应商计数 11 → 12，补充 `zhipu` 与刷新后的模型 Id。
+
+---
+
 ## [v1.3.2] - 2026-08-20
 
 > Tag：[v1.3.2](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases/tag/v1.3.2)

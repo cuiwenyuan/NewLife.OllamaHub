@@ -10,7 +10,7 @@
 
 - 🧩 **纯 NewLife 生态**：仅 `NewLife.Core` + `NewLife.Agent`，无 ASP.NET Core / 无运行时依赖。
 - 🚀 **服务化一等公民**：`NewLife.Agent` 装成 Windows 服务，开机自启、内存/句柄超限自动重启。
-- 🇨🇳 **国内供应商开箱预设**：11 家供应商配置模板，复制即改即用的 `settings.*.json`；也可用 `presets` 子命令一键生成。
+- 🇨🇳 **国内供应商开箱预设**：12 家供应商配置模板（含 GLM 双通道 BigModel + Z.ai），复制即改即用的 `settings.*.json`；也可用 `presets` 子命令一键生成。
 - 🧠 **VS 优先 + Agent 友好**：`/api/show` 正确返回 `capabilities`（`tools`），Copilot 的 Agent 模式、读写文件、跑终端命令均可正常工作。
 - 📚 **文档齐全 / 安装方便 / 升级方便 / 示例完整**：见 `docs/` 与 `examples/`。
 
@@ -22,7 +22,7 @@
 2. **右键安装为服务**：进入解压目录，右键 `NewLife.OllamaHub.exe` → **以管理员身份运行**。弹出的菜单会自动识别状态，按 `2` 安装服务、按 `3` 启动服务即可（菜单项会随服务状态自动变化）。
    ![按 2 安装服务](docs/assets/install-menu-press-2.png)
    ![按 3 启动服务](docs/assets/install-menu-press-3.png)
-3. **可视化配置模型与 Key**：仍在刚才的菜单里，按 `p` 一键生成 11 家供应商预设，按 `k` 逐个填入 API Key（或按 `c` 走配置向导），全程图形化。配置写入后若服务已在运行，会通过**配置热重载**自动生效，无需重启。
+3. **可视化配置模型与 Key**：仍在刚才的菜单里，按 `p` 一键生成 12 家供应商预设，按 `k` 逐个填入 API Key（或按 `c` 走配置向导），全程图形化。配置写入后若服务已在运行，会通过**配置热重载**自动生效，无需重启。
    > 菜单快捷键与完整截图见[安装为 Windows 服务](docs/install-as-service.md)。
 4. **在 Visual Studio 中接入**：打开 GitHub Copilot Chat → Manage models → 选 Ollama → 端点填 `http://localhost:11434`。详见[VS 接入指南](docs/vs-setup.md)。
 
@@ -48,7 +48,7 @@
 | `-restart` | 重启服务 |
 | `self-test` | 内置自检（协议转换等断言，零测试框架） |
 | `setkey <provider> <sk-xxx>` | 加密写入/查看/清除某供应商 Key（`setkey --help` 看全部） |
-| `presets` | 列出/生成内置 11 家供应商预设（`presets <id>` 出脚手架，`--write` 写入，`--force` 覆盖） |
+| `presets` | 列出/生成内置 12 家供应商预设（`presets <id>` 出脚手架，`--write` 写入，`--force` 覆盖） |
 | `upgrade` | 拉取 GitHub Release 自替换并重启（`--check`/`--dry-run`/`--url` 可选） |
 
 > **配置热重载**：运行期修改 `settings.json`（增删模型、轮换 Key、切换聚合、**修改 `host`/`port` 监听地址**等）均**无需重启**即生效——监听地址变更会自动重建监听套接字（失败回退原地址）；详见[配置参考](docs/configuration.md#配置热重载)。
@@ -65,9 +65,9 @@
 | M1 核心链路 | 配置加载 / Ollama 端点 / OpenAI 上游直通 | ✅ |
 | M2 流式与工具 | NDJSON⇄SSE 桥 / tools 映射 / thinking 映射 | ✅ |
 | M3 服务化 | NewLife.Agent / 安装脚本 / Web 面板 / 单文件发布 | ✅ |
-| M4 配置与安全 | **配置热重载** / `setkey` 加密 / **11 家内置预设 `presets`** | ✅ |
+| M4 配置与安全 | **配置热重载** / `setkey` 加密 / **12 家内置预设 `presets`** | ✅ |
 | M5 质量与发布 | **self-test 协议全覆盖（156 断言）** / **GitHub Actions 版本化发布** / docs+示例 | ✅ |
-| M6 增强（可选） | **统一上游适配层（OpenAI/Anthropic/Gemini/透传 Ollama）** / **多模态图像透传** / **Anthropic·Gemini 原生上游 + 2 家预设（共 11 家）** | ✅ |
+| M6 增强（可选） | **统一上游适配层（OpenAI/Anthropic/Gemini/透传 Ollama）** / **多模态图像透传** / **Anthropic·Gemini 原生上游 + 2 家预设（共 12 家，含 GLM 双通道）** | ✅ |
 
 ## 文档
 
