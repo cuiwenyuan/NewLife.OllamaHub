@@ -70,9 +70,11 @@ namespace NewLife.OllamaHub.Commands
             // ---- M4：热重载 / 内置预设 ----
             CheckConfigHotReload();
             CheckProviderPresets();
+            CheckPresetModelIds();
 
             // ---- M5：协议转换补强（tool_calls 响应合并） ----
             CheckToolCallsResponseMerge();
+            CheckToolCallIdRequestPassthrough();
 
             // ---- M6：多模态透传 + Anthropic/Gemini 上游适配器 ----
             CheckMultimodalOpenAi();
@@ -542,7 +544,7 @@ namespace NewLife.OllamaHub.Commands
         /// <summary>M4：9 家内置供应商预设齐备，且脚手架可序列化为合法 settings.json。</summary>
         private static void CheckProviderPresets()
         {
-            Assert("预设：共 11 家内置供应商", ProviderPresets.All.Count == 11);
+            Assert("预设：共 12 家内置供应商", ProviderPresets.All.Count == 12);
             foreach (var p in ProviderPresets.All)
             {
                 Assert($"预设 {p.Id}：baseUrl 非空", !String.IsNullOrEmpty(p.BaseUrl));
@@ -556,8 +558,44 @@ namespace NewLife.OllamaHub.Commands
             settings.Normalize();
             var json = JsonHelper.ToJson(settings);
             var back = JsonHelper.ToJsonEntity<HubSettings>(json);
-            Assert("预设：脚手架含 11 家供应商", back.Providers.Count == 11);
+            Assert("预设：脚手架含 12 家供应商", back.Providers.Count == 12);
             Assert("预设：脚手架含模型", back.Models.Count > 0);
+        }
+
+        /// <summary>M4：防漂移——各家"标志性模型 Id"必须始终存在，防止预设被误改名/误删导致用户配置失效。</summary>
+        private static void CheckPresetModelIds()
+        {
+            // 每条目为该供应商"必须保留"的标志性模型 Id（子集，非全量）；
+            // 一旦有人重命名或删除其中某个，self-test 立即 FAIL，把"静默漂移"变成"编译期可见的回归"。
+            var expected = new Dictionary<String, String[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["deepseek"]   = new[] { "deepseek-v4-flash", "deepseek-v4-pro" },
+                ["qwen"]       = new[] { "qwen3.8-max", "qwen3.8-flash", "qwen3.8-27b" },
+                ["kimi"]       = new[] { "kimi-k3" },
+                ["glm"]        = new[] { "glm-5.3", "glm-5.3-flash" },
+                ["zhipu"]      = new[] { "glm-5.3", "glm-5.3-flash" },
+                ["siliconflow"]= new[] { "deepseek-ai/DeepSeek-V3", "Qwen/Qwen3-235B-A22B-Instruct" },
+                ["volcengine"] = new[] { "doubao-seed-2-1-pro-260628", "doubao-seed-evolving" },
+                ["hunyuan"]    = new[] { "hunyuan-a13b", "hunyuan-hy4-preview" },
+                ["modelscope"] = new[] { "Qwen/Qwen3-235B-A22B-Instruct", "deepseek-ai/DeepSeek-V3.1" },
+                ["openrouter"] = new[] { "openai/gpt-5.6", "anthropic/claude-opus-5", "google/gemini-3.7-flash" },
+                ["anthropic"]  = new[] { "claude-opus-5", "claude-fable-5" },
+                ["gemini"]     = new[] { "gemini-3.1-pro-preview", "gemini-3.7-flash" },
+            };
+
+            // 预建 (providerId -> 模型 Id 集合)
+            var index = ProviderPresets.All.ToDictionary(
+                p => p.Id,
+                p => new HashSet<String>(p.Models.Select(m => m.Id), StringComparer.OrdinalIgnoreCase),
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (pid, ids) in expected)
+            {
+                Assert($"防漂移：预设 {pid} 存在", index.ContainsKey(pid));
+                if (!index.TryGetValue(pid, out var have)) continue;
+                foreach (var id in ids)
+                    Assert($"防漂移：{pid} 标志模型 {id} 存在", have.Contains(id));
+            }
         }
 
         /// <summary>M5：流式 tool_calls 跨块合并进 Ollama message.tool_calls（Copilot Agent 模式依赖）。</summary>
@@ -575,6 +613,52 @@ namespace NewLife.OllamaHub.Commands
             Assert("tool_calls 响应：含函数名", fin.Contains("get_weather"));
             Assert("tool_calls 响应：arguments 跨块拼接含 Beijing", fin.Contains("Beijing"));
             Assert("tool_calls 响应：末帧 done=true", fin.Contains("\"done\":true"));
+        }
+
+        /// <summary>M5：构建上游 OpenAI 请求时，tool 消息必须带 tool_call_id 且与 assistant tool_calls 的 id 对应（DeepSeek 等强制要求，缺失即 400）。</summary>
+        private static void CheckToolCallIdRequestPassthrough()
+        {
+            // 场景 A：入站已带 id 与 tool_call_id，应原样透传
+            var req = new OllamaChatRequest { model = "m1", stream = false };
+            req.messages.Add(new OllamaMessage { role = "user", content = "天气如何？" });
+            req.messages.Add(new OllamaMessage
+            {
+                role = "assistant",
+                content = null,
+                tool_calls = new List<Object> { new Dictionary<String, Object?>
+                {
+                    ["id"] = "call_abc",
+                    ["type"] = "function",
+                    ["function"] = new Dictionary<String, Object?> { ["name"] = "get_weather", ["arguments"] = "{}" },
+                }},
+            });
+            req.messages.Add(new OllamaMessage
+            {
+                role = "tool",
+                content = "晴 25℃",
+                tool_call_id = "call_abc",
+            });
+
+            var json = new OpenAiUpstreamAdapter().BuildRequest(req, new ModelOptions { Id = "m1" }, forceStream: false);
+            Assert("tool_call_id：请求含 tool_call_id 字段", json.Contains("tool_call_id"));
+            Assert("tool_call_id：tool 消息引用 assistant 的 call_abc", json.Contains("call_abc"));
+
+            // 场景 B：入站缺失 id / tool_call_id，应自动合成 call_0 并配对，避免上游 400
+            var req2 = new OllamaChatRequest { model = "m1", stream = false };
+            req2.messages.Add(new OllamaMessage { role = "user", content = "hi" });
+            req2.messages.Add(new OllamaMessage
+            {
+                role = "assistant",
+                tool_calls = new List<Object> { new Dictionary<String, Object?>
+                {
+                    ["type"] = "function",
+                    ["function"] = new Dictionary<String, Object?> { ["name"] = "f", ["arguments"] = "{}" },
+                }},
+            });
+            req2.messages.Add(new OllamaMessage { role = "tool", content = "ok" });
+
+            var json2 = new OpenAiUpstreamAdapter().BuildRequest(req2, new ModelOptions { Id = "m1" }, forceStream: false);
+            Assert("tool_call_id：缺失时自动合成 call_0", json2.Contains("tool_call_id") && json2.Contains("call_0"));
         }
 
         /// <summary>M6：OpenAI 多模态——user 消息带 images 时 content 须变为含 image_url 的数组。</summary>

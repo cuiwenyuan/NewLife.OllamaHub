@@ -621,6 +621,8 @@ public class OllamaHttpServer
                 role = m.role,
                 content = m.content,
                 tool_calls = m.tool_calls,
+                // 透传入站 tool_call_id（OpenAI 兼容端点要求 tool 消息必须携带，否则上游 400）
+                tool_call_id = m.tool_call_id,
                 // 保留客户端回传的推理内容（若有），避免多轮时推理上下文丢失
                 thinking = m.reasoning_content,
             });

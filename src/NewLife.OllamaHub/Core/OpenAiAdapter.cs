@@ -37,17 +37,35 @@ public static class OpenAiAdapter
         //   - 若改用 nullValue=false，序列化器连"默认值"一并丢弃，
         //     用户显式指定的 temperature=0（确定性输出）会被静默吞掉，stream:false 也会消失。
         // 字典方式对"是否发送某字段"有完全控制权，是唯一两头都不踩的做法。
+        // tool_call_id 配对：OpenAI 兼容上游（DeepSeek 等）强制要求 tool 消息带 tool_call_id，
+        // 且必须与前置 assistant 的 tool_calls[].id 对应，否则返回 400。
+        // 入站可能缺失（Ollama 原生格式 / 部分客户端），故此处兜底合成 call_0/call_1… 并顺次配对。
         var messages = new List<Object>();
+        var pendingToolCallIds = new List<String>();
         foreach (var m in req.messages)
         {
+            var role = m.role ?? "";
+            var isAssistant = String.Equals(role, "assistant", StringComparison.OrdinalIgnoreCase);
+            var isTool = String.Equals(role, "tool", StringComparison.OrdinalIgnoreCase);
+            var isUserMulti = m.images != null && m.images.Count > 0
+                              && String.Equals(role, "user", StringComparison.OrdinalIgnoreCase);
+
+            // 归一化 tool_calls（确保每条都有 id）；仅 assistant 消息会更新待配对 id 列表
+            Object? normalizedToolCalls = null;
+            if (m.tool_calls != null)
+            {
+                normalizedToolCalls = NormalizeToolCalls(m.tool_calls, out var ids);
+                if (isAssistant) pendingToolCallIds = ids;
+            }
+
             // 多模态：user 消息带 images 时，content 必须是数组（text + image_url 交替），
             // 否则仍用纯字符串 content（OpenAI 规范里仅含 tool_calls 的 assistant 消息 content:null）
-            if (m.images != null && m.images.Count > 0 && String.Equals(m.role, "user", StringComparison.OrdinalIgnoreCase))
+            if (isUserMulti)
             {
                 var parts = new List<Object?>();
                 if (!String.IsNullOrEmpty(m.content))
                     parts.Add(new Dictionary<String, Object?> { ["type"] = "text", ["text"] = m.content });
-                foreach (var img in m.images)
+                foreach (var img in m.images!)
                 {
                     var (mime, b64) = SplitImage(img);
                     parts.Add(new Dictionary<String, Object?>
@@ -57,23 +75,27 @@ public static class OpenAiAdapter
                     });
                 }
                 var oneMulti = new Dictionary<String, Object?> { ["role"] = "user", ["content"] = parts };
-                if (m.tool_calls != null) oneMulti["tool_calls"] = m.tool_calls;
+                if (normalizedToolCalls != null) oneMulti["tool_calls"] = normalizedToolCalls;
                 messages.Add(oneMulti);
             }
             else
             {
                 var one = new Dictionary<String, Object?>
                 {
-                    ["role"] = m.role,
+                    ["role"] = role,
                     ["content"] = m.content,
                 };
-                if (m.tool_calls != null) one["tool_calls"] = m.tool_calls;
+                if (normalizedToolCalls != null) one["tool_calls"] = normalizedToolCalls;
                 // P0-1：推理模型多轮对话时，把缓存的 reasoning_content 随 assistant 消息回传上游，保持推理连贯
-                if (String.Equals(m.role, "assistant", StringComparison.OrdinalIgnoreCase)
-                    && m.thinking is String th && th.Length > 0)
+                if (isAssistant && m.thinking is String th && th.Length > 0) one["reasoning_content"] = th;
+                // P0-4：tool 消息强制带 tool_call_id；优先用入站值，缺失时按最近 assistant 的 tool_calls 顺序补齐
+                var tcid = m.tool_call_id;
+                if (String.IsNullOrEmpty(tcid) && pendingToolCallIds.Count > 0)
                 {
-                    one["reasoning_content"] = th;
+                    tcid = pendingToolCallIds[0];
+                    pendingToolCallIds.RemoveAt(0);
                 }
+                if (!String.IsNullOrEmpty(tcid)) one["tool_call_id"] = tcid;
                 messages.Add(one);
             }
         }
@@ -297,6 +319,52 @@ public static class OpenAiAdapter
         return ("image/png", image);
     }
 
+    /// <summary>
+    /// 归一化 tool_calls：统一成字典列表，并确保每条都带有 id。
+    /// 入站 assistant 消息的 tool_calls 可能缺失 id（如 Ollama 原生格式、部分客户端），
+    /// 而 OpenAI 兼容上游要求 tool 消息的 tool_call_id 必须与 assistant tool_calls 的 id 对应，
+    /// 故此处缺失即合成 <c>call_0</c>/<c>call_1</c>…，并返回按序的 id 列表供后续 tool 消息配对。
+    /// </summary>
+    /// <param name="toolCalls">入站 tool_calls（单对象或数组，透明传参）。</param>
+    /// <param name="ids">按序返回各 tool_call 的 id（合成或原值），供后续 tool 消息配对。</param>
+    /// <returns>归一化后的 tool_calls（字典列表），可直接写入上游请求。</returns>
+    private static Object? NormalizeToolCalls(Object? toolCalls, out List<String> ids)
+    {
+        ids = new List<String>();
+        if (toolCalls == null) return null;
+
+        List<Object?> items;
+        if (toolCalls is System.Collections.IList list)
+        {
+            items = new List<Object?>();
+            foreach (Object? x in list) items.Add(x);
+        }
+        else
+        {
+            items = new List<Object?> { toolCalls };
+        }
+
+        var result = new List<Dictionary<String, Object?>>();
+        var i = 0;
+        foreach (var item in items)
+        {
+            var dict = item as Dictionary<String, Object?> ?? new Dictionary<String, Object?>();
+            if (dict.TryGetValue("id", out var idObj) && idObj is String sid && !String.IsNullOrEmpty(sid))
+            {
+                ids.Add(sid);
+            }
+            else
+            {
+                var synth = $"call_{i}";
+                dict["id"] = synth;
+                ids.Add(synth);
+            }
+            result.Add(dict);
+            i++;
+        }
+        return result;
+    }
+
     private static Boolean TryGetDouble(Dictionary<String, Object>? opts, String key, out Double val)
     {
         val = 0;
@@ -359,6 +427,9 @@ public class OpenAiMessage
 
     /// <summary>工具调用（Copilot 下发，原样透传）。</summary>
     public Object? tool_calls { get; set; }
+
+    /// <summary>工具结果消息（role=tool）对应的工具调用 Id；OpenAI 兼容上游（DeepSeek 等）强制要求，缺失即 400。</summary>
+    public String? tool_call_id { get; set; }
 
     /// <summary>推理过程（DeepSeek 等返回，映射至 Ollama thinking）。</summary>
     public String? reasoning_content { get; set; }
