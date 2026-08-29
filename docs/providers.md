@@ -8,7 +8,7 @@
 | `qwen` | 阿里通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | 兼容模式地址；当前模型 `qwen3.8-max` / `qwen3.8-flash` / `qwen3.8-27b` / `qwen3.7-plus` / `qwen3.7-flash`（旧名 `qwen-plus`/`qwen-max`/`qwen2.5-*` 已迭代） |
 | `kimi` | Moonshot Kimi | `https://api.moonshot.cn/v1` | 当前模型 `kimi-k3` / `kimi-k2.7-code` / `kimi-k2.6`（旧名 `moonshot-v1-*` 已迭代） |
 | `glm` | 智谱 GLM (BigModel) | `https://open.bigmodel.cn/api/paas/v4` | 当前模型 `glm-5.3` / `glm-5.3-flash` / `glm-5.2` / `glm-5.1` / `glm-4.7` / `glm-4.7-flashx`（旧名 `glm-4-plus/air/flash` 已迭代） |
-| `zhipu` | 智谱 GLM (Z.ai) | `https://api.z.ai/v1` | **GLM 双通道镜像**：与 `glm` 同模型集，仅基址不同，用户可按密钥/配额二选一或同时启用。当前模型同 `glm`（见上）。 |
+| `zhipu` | 智谱 GLM (Z.ai) | `https://api.z.ai/v1` | **GLM 双通道镜像**：与 `glm` 同模型集，仅基址不同。两供应商可**同时启用**——`zhipu` 模型 Id 已命名空间化为 `zhipu-glm-5.3` 等（避免与 `glm` 的 `glm-5.3` 在 `/api/tags` 撞车），但通过 `upstreamModel: glm-5.3` 字段仍向上游发送真实模型名。当前模型：`zhipu-glm-5.3` / `zhipu-glm-5.3-flash` / `zhipu-glm-5.2` / `zhipu-glm-5.1` / `zhipu-glm-4.7` / `zhipu-glm-4.7-flashx`（上游真名各对应 `glm-*`）。 |
 | `siliconflow` | 硅基流动 | `https://api.siliconflow.cn/v1` | 模型 Id 形如 `deepseek-ai/DeepSeek-V3`；托管开源模型，平台固定 ID，较少弃用；新增 `Qwen/Qwen3-235B-A22B-Instruct`、`deepseek-ai/DeepSeek-V3.1` |
 | `volcengine` | 火山方舟 | `https://ark.cn-beijing.volces.com/api/v3` | 需 ARK 接入点 Id；当前模型 `doubao-seed-2.1-pro/turbo` / `doubao-seed-2.0-code` / `doubao-seed-evolving`（统一 ID 思考模型，1M；旧名 `doubao-pro-*` 已迭代） |
 | `hunyuan` | 腾讯混元 | `https://api.hunyuan.cloud.tencent.com/v1` | 当前模型 `hunyuan-a13b` / `hunyuan-vision-1.5-instruct` / `hunyuan-hy4-preview`（2026-08 开源 Hy4；旧名 `hunyuan-pro/turbo` 已迭代） |

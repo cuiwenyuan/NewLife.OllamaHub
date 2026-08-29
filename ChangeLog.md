@@ -6,7 +6,19 @@
 
 ---
 
-## [v1.3.3]（待发布）
+## [v1.3.4] - 2026-08-29
+
+> Tag：[v1.3.4](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases/tag/v1.3.4)
+
+### 供应商预设升级
+- **GLM 双供应商模型命名空间化（Z.ai 与 BigModel 可并存）**：`zhipu`（智谱 Z.ai）模型 Id 由 `glm-5.3` 等改为命名空间形式 `zhipu-glm-5.3` / `zhipu-glm-5.3-flash` / `zhipu-glm-5.2` / `zhipu-glm-5.1` / `zhipu-glm-4.7` / `zhipu-glm-4.7-flashx`，避免与 `glm`（智谱 BigModel）的 `glm-5.3` 在 `/api/tags` / `/v1/models` 撞车。新增 `ModelOptions.UpstreamModel` 字段，`zhipu` 模型借此仍向上游发送真实模型名（如 `glm-5.3`）。上游请求（OpenAI/Anthropic/Gemini/Responses）一律改用 `model.UpstreamModelName`（回落 `Id`）；响应回填客户端的 `model` 仍用 `Id`。以此实现「两家 GLM 同时启用、客户端各自选择」而互不冲突。
+- `self-test` 新增 `CheckUpstreamModelMapping` 防回归断言（6 条）：校验 `zhipu` 请求体发出真实上游名 `glm-5.3`（而非 `zhipu-glm-5.3`）、`UpstreamModelName` 回落逻辑、以及 12 家标志性模型 Id 存在性。
+
+---
+
+## [v1.3.3] - 2026-08-28
+
+> Tag：[v1.3.3](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases/tag/v1.3.3)
 
 ### 供应商预设升级（2026-08 模型刷新）
 - **GLM 拆分为双供应商**：保留 `glm`（智谱 BigModel `open.bigmodel.cn/api/paas/v4`），新增 `zhipu`（智谱 Z.ai `api.z.ai/v1`，OpenAI 兼容），两者镜像同一 GLM 模型集，用户可按密钥/配额二选一或同时启用。内置供应商总数 11 → **12**。

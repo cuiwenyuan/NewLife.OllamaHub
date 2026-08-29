@@ -74,9 +74,12 @@
     }
   ],
   "models": [
-    { "id": "glm-5.3", "ownedBy": "zhipu", "displayName": "GLM-5.3 (Z.ai)", "family": "glm", "provider": "zhipu", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true, "temperature": 0 },
-    { "id": "glm-5.3-flash", "ownedBy": "zhipu", "displayName": "GLM-5.3 Flash (Z.ai)", "family": "glm", "provider": "zhipu", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true, "thinking": true, "includeReasoningInRequest": false },
-    { "id": "glm-4.7", "ownedBy": "zhipu", "displayName": "GLM-4.7 (Z.ai)", "family": "glm", "provider": "zhipu", "contextLength": 200000, "maxTokens": 8192, "tools": true, "temperature": 0 },
+    { "id": "zhipu-glm-5.3", "upstreamModel": "glm-5.3", "ownedBy": "zhipu", "displayName": "GLM-5.3 (Z.ai)", "family": "glm", "provider": "zhipu", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true, "temperature": 0 },
+    { "id": "zhipu-glm-5.3-flash", "upstreamModel": "glm-5.3-flash", "ownedBy": "zhipu", "displayName": "GLM-5.3 Flash (Z.ai)", "family": "glm", "provider": "zhipu", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true, "thinking": true, "includeReasoningInRequest": false },
+    { "id": "zhipu-glm-5.2", "upstreamModel": "glm-5.2", "ownedBy": "zhipu", "displayName": "GLM-5.2 (Z.ai)", "family": "glm", "provider": "zhipu", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "temperature": 0 },
+    { "id": "zhipu-glm-5.1", "upstreamModel": "glm-5.1", "ownedBy": "zhipu", "displayName": "GLM-5.1 (Z.ai)", "family": "glm", "provider": "zhipu", "contextLength": 200000, "maxTokens": 8192, "tools": true, "temperature": 0 },
+    { "id": "zhipu-glm-4.7", "upstreamModel": "glm-4.7", "ownedBy": "zhipu", "displayName": "GLM-4.7 (Z.ai)", "family": "glm", "provider": "zhipu", "contextLength": 200000, "maxTokens": 8192, "tools": true, "temperature": 0 },
+    { "id": "zhipu-glm-4.7-flashx", "upstreamModel": "glm-4.7-flashx", "ownedBy": "zhipu", "displayName": "GLM-4.7 FlashX (Z.ai)", "family": "glm", "provider": "zhipu", "contextLength": 200000, "maxTokens": 8192, "tools": true, "temperature": 0 },
 
     { "id": "gemini-3.1-pro-preview", "ownedBy": "gemini", "displayName": "Gemini 3.1 Pro", "family": "gemini", "provider": "gemini", "contextLength": 2000000, "maxTokens": 8192, "tools": true, "vision": true },
     { "id": "gemini-3.7-flash", "ownedBy": "gemini", "displayName": "Gemini 3.7 Flash", "family": "gemini", "provider": "gemini", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true },
