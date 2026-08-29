@@ -71,6 +71,7 @@ namespace NewLife.OllamaHub.Commands
             CheckConfigHotReload();
             CheckProviderPresets();
             CheckPresetModelIds();
+            CheckUpstreamModelMapping();
 
             // ---- M5：协议转换补强（tool_calls 响应合并） ----
             CheckToolCallsResponseMerge();
@@ -573,7 +574,7 @@ namespace NewLife.OllamaHub.Commands
                 ["qwen"]       = new[] { "qwen3.8-max", "qwen3.8-flash", "qwen3.8-27b" },
                 ["kimi"]       = new[] { "kimi-k3" },
                 ["glm"]        = new[] { "glm-5.3", "glm-5.3-flash" },
-                ["zhipu"]      = new[] { "glm-5.3", "glm-5.3-flash" },
+                ["zhipu"]      = new[] { "zhipu-glm-5.3", "zhipu-glm-5.3-flash" },
                 ["siliconflow"]= new[] { "deepseek-ai/DeepSeek-V3", "Qwen/Qwen3-235B-A22B-Instruct" },
                 ["volcengine"] = new[] { "doubao-seed-2-1-pro-260628", "doubao-seed-evolving" },
                 ["hunyuan"]    = new[] { "hunyuan-a13b", "hunyuan-hy4-preview" },
@@ -596,6 +597,31 @@ namespace NewLife.OllamaHub.Commands
                 foreach (var id in ids)
                     Assert($"防漂移：{pid} 标志模型 {id} 存在", have.Contains(id));
             }
+        }
+
+        /// <summary>M4：模型命名空间化——Z.ai(zhipu) 与 BigModel(glm) 模型集相同但 Id 已命名空间化，
+        /// 上游请求必须发"真实模型名"(UpstreamModel)，而非 hub 内部命名空间 Id，否则 Z.ai 不识别。</summary>
+        private static void CheckUpstreamModelMapping()
+        {
+            // 1) 预设层面：zhipu 模型 Id 命名空间化，但 UpstreamModel 指向真实上游名
+            var all = ProviderPresets.All;
+            var zhipu = all.First(p => String.Equals(p.Id, "zhipu", StringComparison.OrdinalIgnoreCase));
+            var zModel = zhipu.Models.First(m => m.Id == "zhipu-glm-5.3");
+            Assert("上游名映射：zhipu 模型 Id 命名空间化", zModel.Id == "zhipu-glm-5.3");
+            Assert("上游名映射：zhipu 模型 UpstreamModel 为真实名 glm-5.3", zModel.UpstreamModel == "glm-5.3");
+            Assert("上游名映射：UpstreamModelName 回落到真实名", zModel.UpstreamModelName == "glm-5.3");
+
+            // 2) 构建上游 OpenAI 请求时，发出的 model 字段必须是真实上游名（glm-5.3），而非 zhipu-glm-5.3
+            var req = new OllamaChatRequest { model = "zhipu-glm-5.3", stream = false };
+            req.messages.Add(new OllamaMessage { role = "user", content = "hi" });
+            var json = new OpenAiUpstreamAdapter().BuildRequest(req, zModel, forceStream: false);
+            Assert("上游名映射：请求体含真实上游模型名 glm-5.3", json.Contains("glm-5.3"));
+            Assert("上游名映射：请求体不含命名空间 Id zhipu-glm-5.3", !json.Contains("zhipu-glm-5.3"));
+
+            // 3) 回落语义：未配置 UpstreamModel 时，UpstreamModelName == Id（如 glm 供应商）
+            var glmModel = all.First(p => String.Equals(p.Id, "glm", StringComparison.OrdinalIgnoreCase))
+                              .Models.First(m => m.Id == "glm-5.3");
+            Assert("上游名映射：未配置时 UpstreamModelName 回落 Id", glmModel.UpstreamModelName == "glm-5.3");
         }
 
         /// <summary>M5：流式 tool_calls 跨块合并进 Ollama message.tool_calls（Copilot Agent 模式依赖）。</summary>
