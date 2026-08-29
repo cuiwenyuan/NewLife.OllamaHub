@@ -138,7 +138,10 @@ public static class ProviderPresets
         });
 
         // 4b) 智谱 GLM (Z.ai) 镜像通道——与 BigModel 同模型集，仅 baseUrl 不同（api.z.ai/v1，OpenAI 兼容）。
-        // 用户可按需二选一：若 BigModel 通道需企业密钥/配额，可改用 Z.ai 个人令牌；两供应商 Id 不同，可同时启用互不冲突。
+        // 两供应商 Id 不同且各自模型 Id 已命名空间化（zhipu-*），故可【同时启用】互不冲突：
+        //   - 模型 Id 用 zhipu-glm-5.3 等，避免与 glm 供应商的 glm-5.3 在 /api/tags 撞车；
+        //   - upstreamModel 仍填真正上游名 glm-5.3，发给 Z.ai 的请求体 model 字段正确。
+        // 用户可按需二选一，或两家都启用、在客户端各自选择。
         list.Add(new ProviderPreset
         {
             Id = "zhipu",
@@ -146,12 +149,12 @@ public static class ProviderPresets
             BaseUrl = "https://api.z.ai/v1",
             Models =
             {
-                M("glm-5.3", "GLM-5.3 (Z.ai)", "glm", ctx: 1000000, max: 8192, vision: true),
-                M("glm-5.3-flash", "GLM-5.3 Flash (Z.ai)", "glm", ctx: 1000000, max: 8192, vision: true, thinking: true),
-                M("glm-5.2", "GLM-5.2 (Z.ai)", "glm", ctx: 1000000, max: 8192),
-                M("glm-5.1", "GLM-5.1 (Z.ai)", "glm", ctx: 200000, max: 8192),
-                M("glm-4.7", "GLM-4.7 (Z.ai)", "glm", ctx: 200000, max: 8192),
-                M("glm-4.7-flashx", "GLM-4.7 FlashX (Z.ai)", "glm", ctx: 200000, max: 8192),
+                M("zhipu-glm-5.3", "GLM-5.3 (Z.ai)", "glm", ctx: 1000000, max: 8192, vision: true, upstreamModel: "glm-5.3"),
+                M("zhipu-glm-5.3-flash", "GLM-5.3 Flash (Z.ai)", "glm", ctx: 1000000, max: 8192, vision: true, thinking: true, upstreamModel: "glm-5.3-flash"),
+                M("zhipu-glm-5.2", "GLM-5.2 (Z.ai)", "glm", ctx: 1000000, max: 8192, upstreamModel: "glm-5.2"),
+                M("zhipu-glm-5.1", "GLM-5.1 (Z.ai)", "glm", ctx: 200000, max: 8192, upstreamModel: "glm-5.1"),
+                M("zhipu-glm-4.7", "GLM-4.7 (Z.ai)", "glm", ctx: 200000, max: 8192, upstreamModel: "glm-4.7"),
+                M("zhipu-glm-4.7-flashx", "GLM-4.7 FlashX (Z.ai)", "glm", ctx: 200000, max: 8192, upstreamModel: "glm-4.7-flashx"),
             },
         });
 
@@ -273,10 +276,11 @@ public static class ProviderPresets
 
     /// <summary>构造模型模板的便捷函数。</summary>
     private static ModelOptions M(String id, String display, String family, Int64 ctx, Int32 max,
-        Boolean vision = false, Boolean thinking = false, List<String>? drop = null)
+        Boolean vision = false, Boolean thinking = false, List<String>? drop = null, String? upstreamModel = null)
         => new ModelOptions
         {
             Id = id,
+            UpstreamModel = upstreamModel,
             DisplayName = display,
             Family = family,
             ContextLength = ctx,

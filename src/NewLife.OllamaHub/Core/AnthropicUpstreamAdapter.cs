@@ -94,7 +94,7 @@ public sealed class AnthropicUpstreamAdapter : IUpstreamAdapter
 
         var body = new Dictionary<String, Object?>
         {
-            ["model"] = model.Id,
+            ["model"] = model.UpstreamModelName,
             ["stream"] = forceStream,
             ["messages"] = messages,
             // Anthropic 强制要求 max_tokens，缺失会直接 400；取 options 或模型上限

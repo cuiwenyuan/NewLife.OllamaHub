@@ -32,7 +32,7 @@ public sealed class ResponsesUpstreamAdapter : IUpstreamAdapter
 
         var body = new Dictionary<String, Object?>
         {
-            ["model"] = model.Id,
+            ["model"] = model.UpstreamModelName,
             ["input"] = BuildInput(req.messages),
             ["stream"] = forceStream ? true : req.stream,
         };

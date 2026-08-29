@@ -102,8 +102,8 @@ public static class OpenAiAdapter
 
         var oa = new Dictionary<String, Object?>
         {
-            // 上游模型标识：默认使用 ModelOptions.Id（如 deepseek-v4-flash 即 DeepSeek 官方模型名）
-            ["model"] = model.Id,
+            // 上游模型标识：优先 UpstreamModel（命名空间别名场景下映射回真实上游模型名），回落 Id
+            ["model"] = model.UpstreamModelName,
             ["messages"] = messages,
             // stream：默认透传客户端偏好（Copilot 通常 stream:true）；
             // forceStream=true 时强制向上游请求 SSE，由翻译器统一累积后再按 req.stream 决定下发形态，

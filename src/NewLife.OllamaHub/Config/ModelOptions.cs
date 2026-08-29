@@ -8,6 +8,17 @@ public class ModelOptions
     /// <summary>模型 Id（Copilot 展示与引用用，如 deepseek-v4-flash）。</summary>
     public String Id { get; set; } = "";
 
+    /// <summary>
+    /// 上游实际模型名（可选）。为 null/空时回落到 <see cref="Id"/>。
+    /// 用于同一模型在不同供应商下 Id 冲突时做命名空间化：例如把 Z.ai 的 GLM 命名为
+    /// <c>zhipu-glm-5.3</c>，但向上游仍发真正的 <c>glm-5.3</c>；也可用于映射平台别名。
+    /// 仅影响「发给上游的请求体/URL 中的 model 字段」，响应回填客户端的 model 仍用 <see cref="Id"/>。
+    /// </summary>
+    public String? UpstreamModel { get; set; }
+
+    /// <summary>解析发给上游的真实模型名（UpstreamModel 优先，回落 Id）。</summary>
+    public String UpstreamModelName => String.IsNullOrEmpty(UpstreamModel) ? Id : UpstreamModel!;
+
     /// <summary>归属供应商 Id，对应 ProviderOptions.Id。</summary>
     public String? OwnedBy { get; set; }
 
@@ -65,6 +76,7 @@ public class ModelOptions
     public ModelOptions Clone() => new ModelOptions
     {
         Id = Id,
+        UpstreamModel = UpstreamModel,
         OwnedBy = OwnedBy,
         DisplayName = DisplayName,
         Family = Family,

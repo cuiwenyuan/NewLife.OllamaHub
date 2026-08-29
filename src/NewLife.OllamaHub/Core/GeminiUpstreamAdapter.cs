@@ -124,7 +124,7 @@ public sealed class GeminiUpstreamAdapter : IUpstreamAdapter
     {
         var baseUrl = (provider.BaseUrl ?? "").TrimEnd('/');
         var apiKey = SecretProtector.Resolve(provider) ?? "";
-        return $"{baseUrl}/models/{model.Id}:streamGenerateContent?alt=sse&key={apiKey}";
+        return $"{baseUrl}/models/{model.UpstreamModelName}:streamGenerateContent?alt=sse&key={apiKey}";
     }
 
     /// <inheritdoc/>
