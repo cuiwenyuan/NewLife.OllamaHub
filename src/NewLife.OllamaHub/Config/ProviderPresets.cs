@@ -72,6 +72,8 @@ public static class ProviderPresets
         var list = new List<ProviderPreset>();
 
         // 1) DeepSeek
+        // 2026-09 升级：官方于 2026-09-10 将 V4 Flash / V4 Flash Vision Exp 统一为规范名 deepseek-flash（原生多模态 + 可切换思考），
+        // deepseek-v4-pro 于 2026-09-14 起自动回落到 V4.1 Flash 并退役——故直接切换为 deepseek-flash，不再保留 v4 别名。
         list.Add(new ProviderPreset
         {
             Id = "deepseek",
@@ -79,13 +81,8 @@ public static class ProviderPresets
             BaseUrl = "https://api.deepseek.com/v1",
             Models =
             {
-                // 2026-08 更新：DeepSeek 官方已弃用 deepseek-chat / deepseek-reasoner（2026-07-24 起返回错误），
-                // 当前可用模型为 deepseek-v4-flash / deepseek-v4-pro，二者均支持 1M 上下文与 tools。
-                M("deepseek-v4-flash", "DeepSeek V4 Flash", "deepseek", ctx: 1000000, max: 384000),
-                M("deepseek-v4-pro", "DeepSeek V4 Pro", "deepseek", ctx: 1000000, max: 384000,
-                  thinking: true, drop: new() { "temperature", "top_p" }),
-                // 2026-08 新增：实验性多模态（图生文），vision 支持；属实验模型，可能随官方迭代改名。
-                M("deepseek-v4-flash-vision-exp", "DeepSeek V4 Flash Vision (Exp)", "deepseek", ctx: 1000000, max: 384000, vision: true),
+                // 规范名 deepseek-flash：1M 上下文 / 384K 输出，原生视觉理解，思考默认可开关。
+                M("deepseek-flash", "DeepSeek Flash (V4.1)", "deepseek", ctx: 1000000, max: 384000, vision: true, thinking: true),
             },
         });
 
@@ -158,7 +155,9 @@ public static class ProviderPresets
             },
         });
 
-        // 5) 硅基流动（2026-08 升级：新增 Qwen3-235B、DeepSeek-V3.1；保留既有 DeepSeek-V3/R1、Qwen2.5-72B）
+        // 5) 硅基流动（2026-09 刷新：DeepSeek 升到 V4 系列、新增智谱 GLM-5.3 / Qwen3.8 / Kimi-K3；旧 V3/V3.1/R1 已退役）
+        // 注意：硅基流动模型 Id 的 owner 大小写在第三方源间有分歧，下列采用与既有 deepseek-ai/、Qwen/ 一致的大写惯例；
+        // 若调用 404，请以你自己账号 GET https://api.siliconflow.cn/v1/models 返回的实际 Id 为准。
         list.Add(new ProviderPreset
         {
             Id = "siliconflow",
@@ -166,16 +165,18 @@ public static class ProviderPresets
             BaseUrl = "https://api.siliconflow.cn/v1",
             Models =
             {
-                M("deepseek-ai/DeepSeek-V3", "SiliconFlow DeepSeek-V3", "siliconflow", ctx: 128000, max: 8192),
-                M("deepseek-ai/DeepSeek-V3.1", "SiliconFlow DeepSeek-V3.1", "siliconflow", ctx: 128000, max: 8192),
-                M("deepseek-ai/DeepSeek-R1", "SiliconFlow DeepSeek-R1", "siliconflow", ctx: 64000, max: 65536,
+                M("deepseek-ai/DeepSeek-V4-Flash-0731", "SiliconFlow DeepSeek-V4-Flash", "siliconflow", ctx: 1048576, max: 131072),
+                M("deepseek-ai/DeepSeek-V4-Flash-Vision-Exp", "SiliconFlow DeepSeek-V4-Flash Vision", "siliconflow", ctx: 1048576, max: 131072, vision: true),
+                M("deepseek-ai/DeepSeek-V4-Pro-0813", "SiliconFlow DeepSeek-V4-Pro", "siliconflow", ctx: 1048576, max: 131072,
                   thinking: true, drop: new() { "temperature", "top_p" }),
-                M("Qwen/Qwen2.5-72B-Instruct", "SiliconFlow Qwen2.5-72B", "siliconflow", ctx: 131072, max: 8192),
-                M("Qwen/Qwen3-235B-A22B-Instruct", "SiliconFlow Qwen3-235B", "siliconflow", ctx: 128000, max: 8192),
+                M("zhipuai/GLM-5.3", "SiliconFlow GLM-5.3", "siliconflow", ctx: 1048576, max: 262144),
+                M("zhipuai/GLM-5.3-Flash", "SiliconFlow GLM-5.3-Flash", "siliconflow", ctx: 1048576, max: 262144, vision: true),
+                M("Qwen/Qwen3.8-2.4T-A95B", "SiliconFlow Qwen3.8 2.4T", "siliconflow", ctx: 1048576, max: 131072, vision: true),
+                M("moonshotai/Kimi-K3", "SiliconFlow Kimi-K3", "siliconflow", ctx: 1048576, max: 262144, vision: true, thinking: true),
             },
         });
 
-        // 6) 火山方舟（2026-08 升级：doubao-pro-* 已迭代为 doubao-seed-2.1 系列；新增统一 ID 思考模型 doubao-seed-evolving）
+        // 6) 火山方舟（2026-09 刷新：doubao-seed-2.1 系列(260628) 经核实仍在线；新增 260915 旗舰快照，保留统一 ID 思考模型 doubao-seed-evolving）
         list.Add(new ProviderPreset
         {
             Id = "volcengine",
@@ -183,30 +184,32 @@ public static class ProviderPresets
             BaseUrl = "https://ark.cn-beijing.volces.com/api/v3",
             Models =
             {
-                M("doubao-seed-2-1-pro-260628", "Doubao Seed 2.1 Pro", "volcengine", ctx: 256000, max: 8192),
-                M("doubao-seed-2-1-turbo-260628", "Doubao Seed 2.1 Turbo", "volcengine", ctx: 256000, max: 8192),
-                M("doubao-seed-2-0-code-preview-260215", "Doubao Seed 2.0 Code", "volcengine", ctx: 256000, max: 8192),
+                M("doubao-seed-2-1-pro-260915", "Doubao Seed 2.1 Pro (260915)", "volcengine", ctx: 256000, max: 32768, thinking: true),
+                M("doubao-seed-2-1-pro-260628", "Doubao Seed 2.1 Pro", "volcengine", ctx: 256000, max: 32768, thinking: true),
+                M("doubao-seed-2-1-turbo-260628", "Doubao Seed 2.1 Turbo", "volcengine", ctx: 256000, max: 32768),
+                M("doubao-seed-2-0-code-preview-260215", "Doubao Seed 2.0 Code", "volcengine", ctx: 256000, max: 32768, vision: true),
                 // 统一 ID 思考模型：平台自动升级底层版本，1M 上下文，推理型。
-                M("doubao-seed-evolving", "Doubao Seed Evolving", "volcengine", ctx: 1000000, max: 8192, thinking: true),
+                M("doubao-seed-evolving", "Doubao Seed Evolving", "volcengine", ctx: 1000000, max: 32768, thinking: true),
             },
         });
 
-        // 7) 腾讯混元（2026-08 升级：hunyuan-pro/turbo 已迭代为 hunyuan-a13b；2026-08 开源 Hy4 系列）
+        // 7) 腾讯混元（2026-09 切换：混元旗舰 HY3 / Hy4 现经腾讯云 TokenHub 暴露，统一 OpenAI 兼容基址；
+        //    旧 api.hunyuan.cloud.tencent.com 的 hunyuan-a13b 等不在 TokenHub 体系，故迁移到 TokenHub。）
         list.Add(new ProviderPreset
         {
             Id = "hunyuan",
-            Name = "腾讯混元",
-            BaseUrl = "https://api.hunyuan.cloud.tencent.com/v1",
+            Name = "腾讯混元 (TokenHub)",
+            BaseUrl = "https://tokenhub.tencentmaas.com/v1",
             Models =
             {
-                M("hunyuan-a13b", "Hunyuan A13B", "hunyuan", ctx: 224000, max: 8192, thinking: true),
-                M("hunyuan-vision-1.5-instruct", "Hunyuan Vision 1.5", "hunyuan", ctx: 24000, max: 8192, vision: true),
-                // 2026-08 开源 Hy4（770B/49B/1M）；model id 经腾讯云 TokenHub/OpenRouter 暴露，具体 slug 以官方为准（此处以 hy4-preview 占位）。
-                M("hunyuan-hy4-preview", "Hunyuan Hy4 Preview", "hunyuan", ctx: 1000000, max: 8192, thinking: true),
+                // HY3 正式版：256K 上下文 / 64K 输出，推理型（快慢思考切换），原生工具调用，文本输入。
+                M("hy3", "Hunyuan Hy3", "hunyuan", ctx: 256000, max: 64000, thinking: true),
+                // Hy4 预览版：约 1M 上下文 / 262K 输出，推理型。
+                M("hy4-preview", "Hunyuan Hy4 Preview", "hunyuan", ctx: 1048576, max: 262144, thinking: true),
             },
         });
 
-        // 8) ModelScope（2026-08 修正：API-Inference 基址为 api-inference.modelscope.cn/v1；新增 Qwen3-235B、DeepSeek-V3.1）
+        // 8) ModelScope（2026-09 刷新：Qwen 升到 3.8 系列、DeepSeek 升到 V4 系列、新增智谱 GLM-5.3；旧 V3/V3.1 已退役）
         list.Add(new ProviderPreset
         {
             Id = "modelscope",
@@ -214,14 +217,15 @@ public static class ProviderPresets
             BaseUrl = "https://api-inference.modelscope.cn/v1",
             Models =
             {
-                M("Qwen/Qwen2.5-72B-Instruct", "ModelScope Qwen2.5-72B", "modelscope", ctx: 131072, max: 8192),
-                M("Qwen/Qwen3-235B-A22B-Instruct", "ModelScope Qwen3-235B", "modelscope", ctx: 128000, max: 8192),
-                M("deepseek-ai/DeepSeek-V3", "ModelScope DeepSeek-V3", "modelscope", ctx: 128000, max: 8192),
-                M("deepseek-ai/DeepSeek-V3.1", "ModelScope DeepSeek-V3.1", "modelscope", ctx: 128000, max: 8192),
+                M("Qwen/Qwen3.8-27B", "ModelScope Qwen3.8 27B", "modelscope", ctx: 262144, max: 131072, vision: true),
+                M("Qwen/Qwen3.8-Flash-Next", "ModelScope Qwen3.8 Flash-Next", "modelscope", ctx: 262144, max: 131072, vision: true),
+                M("deepseek-ai/DeepSeek-V4-Flash-0731", "ModelScope DeepSeek-V4-Flash", "modelscope", ctx: 1048576, max: 131072),
+                M("deepseek-ai/DeepSeek-V4.1-Flash", "ModelScope DeepSeek-V4.1-Flash", "modelscope", ctx: 1048576, max: 131072, vision: true),
+                M("ZhipuAI/GLM-5.3", "ModelScope GLM-5.3", "modelscope", ctx: 1048576, max: 262144),
             },
         });
 
-        // 9) OpenRouter（聚合器，2026-08 升级：gpt-4o / claude-3.5-sonnet / gemini-pro-1.5 已迭代为 5.x / 3.x 系列）
+        // 9) OpenRouter（聚合器，2026-09 升级：新增 GPT-6 系列、Claude Fable 5.1、Gemini 3.8 Flash；保留 gpt-5.6 / claude-opus-5 / gemini-3.7-flash）
         list.Add(new ProviderPreset
         {
             Id = "openrouter",
@@ -229,13 +233,16 @@ public static class ProviderPresets
             BaseUrl = "https://openrouter.ai/api/v1",
             Models =
             {
+                M("openai/gpt-6-astra", "GPT-6 Astra", "openrouter", ctx: 1050000, max: 16384, vision: true),
                 M("openai/gpt-5.6", "GPT-5.6", "openrouter", ctx: 256000, max: 16384),
                 M("anthropic/claude-opus-5", "Claude Opus 5", "openrouter", ctx: 1000000, max: 16384),
+                M("anthropic/claude-fable-5.1", "Claude Fable 5.1", "openrouter", ctx: 1000000, max: 16384, vision: true),
+                M("google/gemini-3.8-flash", "Gemini 3.8 Flash", "openrouter", ctx: 1000000, max: 8192, vision: true),
                 M("google/gemini-3.7-flash", "Gemini 3.7 Flash", "openrouter", ctx: 1000000, max: 8192, vision: true),
             },
         });
 
-        // 10) Anthropic Claude（ApiMode=anthropic；2026-08 升级：claude-3.5-* 已迭代为 Claude 5 系列；新增 Fable 5）
+        // 10) Anthropic Claude（ApiMode=anthropic；2026-09 新增 Fable 5.1 / Opus 5.5；保留 Opus 5 / Sonnet 5 / Fable 5 / Haiku 4.5）
         list.Add(new ProviderPreset
         {
             Id = "anthropic",
@@ -244,14 +251,16 @@ public static class ProviderPresets
             ApiMode = "anthropic",
             Models =
             {
+                M("claude-opus-5-5", "Claude Opus 5.5", "anthropic", ctx: 1000000, max: 16384),
                 M("claude-opus-5", "Claude Opus 5", "anthropic", ctx: 1000000, max: 16384),
                 M("claude-sonnet-5", "Claude Sonnet 5", "anthropic", ctx: 1000000, max: 16384),
+                M("claude-fable-5-1", "Claude Fable 5.1", "anthropic", ctx: 1000000, max: 16384, vision: true),
                 M("claude-fable-5", "Claude Fable 5", "anthropic", ctx: 1000000, max: 16384, vision: true),
                 M("claude-haiku-4-5", "Claude Haiku 4.5", "anthropic", ctx: 200000, max: 8192),
             },
         });
 
-        // 11) Google Gemini（ApiMode=gemini；2026-08 升级：2.5 系列已迭代为 3.x 系列）
+        // 11) Google Gemini（ApiMode=gemini；2026-09 新增 Gemini 3.8 Flash；保留 3.1 Pro / 3.7 Flash / 3.5 Flash-Lite）
         list.Add(new ProviderPreset
         {
             Id = "gemini",
@@ -261,6 +270,7 @@ public static class ProviderPresets
             Models =
             {
                 M("gemini-3.1-pro-preview", "Gemini 3.1 Pro", "gemini", ctx: 2000000, max: 8192, vision: true),
+                M("gemini-3.8-flash", "Gemini 3.8 Flash", "gemini", ctx: 1000000, max: 8192, vision: true),
                 M("gemini-3.7-flash", "Gemini 3.7 Flash", "gemini", ctx: 1000000, max: 8192, vision: true),
                 M("gemini-3.5-flash-lite", "Gemini 3.5 Flash-Lite", "gemini", ctx: 1000000, max: 8192, vision: true),
             },
