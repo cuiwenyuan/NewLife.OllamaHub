@@ -11,6 +11,6 @@
     }
   ],
   "models": [
-    { "id": "qwen-vl-max", "ownedBy": "qwen", "displayName": "通义千问 VL Max（视觉）", "family": "qwen", "provider": "qwen", "contextLength": 32000, "maxTokens": 4096, "tools": true, "vision": true }
+    { "id": "qwen3.8-flash", "ownedBy": "qwen", "displayName": "通义千问 Qwen3.8 Flash（视觉）", "family": "qwen", "provider": "qwen", "contextLength": 1000000, "maxTokens": 8192, "tools": true, "vision": true }
   ]
 }

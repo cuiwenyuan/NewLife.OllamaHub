@@ -6,6 +6,26 @@
 
 ---
 
+## [Unreleased] - 模型预设全量刷新（待发版）
+
+> 对应待打 tag；本版将 12 家供应商模型预设一次性对齐到 2026-09 各家官方最新 Id 与端点。
+
+### 供应商预设升级（12 家模型全量刷新）
+- **DeepSeek 直接切换为 `deepseek-flash`**：2026-09-10 官方将 V4 Flash / V4 Flash Vision Exp 统一为规范名 `deepseek-flash`（原生多模态 + 可切换思考），`deepseek-v4-pro` 于 2026-09-14 起自动回落到 V4.1 Flash 并退役——不再保留任何 v4 别名（`deepseek-v4-flash` / `deepseek-v4-pro` / `deepseek-v4-flash-vision-exp` 全部移除）。
+- **腾讯混元迁移到 TokenHub**：混元旗舰 HY3 / Hy4 现经腾讯云 TokenHub（`https://tokenhub.tencentmaas.com/v1`）暴露，旧 `api.hunyuan.cloud.tencent.com` 的 `hunyuan-a13b` 等不在 TokenHub 体系；`hunyuan` 预设基址与模型同步改为 `hy3` / `hy4-preview`。
+- **硅基流动 / ModelScope 升到 V4 系列**：DeepSeek 由 V3/V3.1/R1 升到 `DeepSeek-V4-Flash-0731` / `-Vision-Exp` / `-Pro-0813`（ModelScope 另含 `DeepSeek-V4.1-Flash`）；新增智谱 `zhipuai/GLM-5.3`(+Flash)、`Qwen/Qwen3.8-2.4T-A95B`（硅基流动）/ `Qwen/Qwen3.8-27B`、`Qwen/Qwen3.8-Flash-Next`（ModelScope）、`ZhipuAI/GLM-5.3`（ModelScope）、`moonshotai/Kimi-K3`（硅基流动）。
+- **火山方舟**：保留 `doubao-seed-2.1`(260628) 与统一 ID 思考模型 `doubao-seed-evolving`（经核实仍在线），新增旗舰快照 `doubao-seed-2-1-pro-260915`。
+- **OpenRouter**：新增 `openai/gpt-6-astra`、`anthropic/claude-fable-5.1`、`google/gemini-3.8-flash`（保留 gpt-5.6 / claude-opus-5 / gemini-3.7-flash）。
+- **Anthropic**：新增 `claude-opus-5-5` / `claude-fable-5-1`（保留 opus-5 / sonnet-5 / fable-5 / haiku-4-5）。
+- **Google Gemini**：新增 `gemini-3.8-flash`（保留 3.1 Pro / 3.7 Flash / 3.5 Flash-Lite）。
+- **Kimi 未加 `kimi-k2.8-preview`**：经核实 K2.8 Preview 仅在 Kimi Code 订阅服务，官方开放 API（`api.moonshot.cn/v1`）无此 Id，加上会 404；`kimi` 预设维持 `kimi-k3` / `kimi-k2.7-code` / `kimi-k2.6`。
+
+### 文档与示例
+- `docs/providers.md` 12 家 + 2 家原生协议表格刷新到上述模型 Id / 端点；`examples/settings.*.json`（deepseek / siliconflow / gemini / anthropic / vision / newmodels）同步。
+- **已知风险**：硅基流动模型 Id 的 owner 大小写在第三方源间有分歧（openaisuite 显示小写 `zhipuai/glm-5.3`，而官方模型名为大写 GLM-5.3）；本版采用与既有 `deepseek-ai/` / `Qwen/` 一致的大写惯例，若调用 404，请以你自己账号 `GET https://api.siliconflow.cn/v1/models` 返回的实际 Id 为准并反馈。
+
+---
+
 ## [v1.3.4] - 2026-08-29
 
 > Tag：[v1.3.4](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases/tag/v1.3.4)

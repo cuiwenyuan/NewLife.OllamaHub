@@ -12,8 +12,11 @@
     }
   ],
   "models": [
-    { "id": "claude-3-5-sonnet-latest", "ownedBy": "anthropic", "displayName": "Claude 3.5 Sonnet", "family": "anthropic", "provider": "anthropic", "contextLength": 200000, "maxTokens": 8192, "tools": true, "vision": true },
-    { "id": "claude-3-5-haiku-latest", "ownedBy": "anthropic", "displayName": "Claude 3.5 Haiku", "family": "anthropic", "provider": "anthropic", "contextLength": 200000, "maxTokens": 8192, "tools": true, "vision": true },
-    { "id": "claude-3-opus-latest", "ownedBy": "anthropic", "displayName": "Claude 3 Opus", "family": "anthropic", "provider": "anthropic", "contextLength": 200000, "maxTokens": 4096, "tools": true, "vision": true }
+    { "id": "claude-opus-5-5", "ownedBy": "anthropic", "displayName": "Claude Opus 5.5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true },
+    { "id": "claude-opus-5", "ownedBy": "anthropic", "displayName": "Claude Opus 5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true },
+    { "id": "claude-sonnet-5", "ownedBy": "anthropic", "displayName": "Claude Sonnet 5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true },
+    { "id": "claude-fable-5-1", "ownedBy": "anthropic", "displayName": "Claude Fable 5.1", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true, "vision": true },
+    { "id": "claude-fable-5", "ownedBy": "anthropic", "displayName": "Claude Fable 5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true, "vision": true },
+    { "id": "claude-haiku-4-5", "ownedBy": "anthropic", "displayName": "Claude Haiku 4.5", "family": "anthropic", "provider": "anthropic", "contextLength": 200000, "maxTokens": 8192, "tools": true }
   ]
 }

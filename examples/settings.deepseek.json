@@ -12,7 +12,6 @@
     }
   ],
   "models": [
-    { "id": "deepseek-v4-flash", "ownedBy": "deepseek", "displayName": "DeepSeek V4 Flash", "family": "deepseek", "provider": "deepseek", "contextLength": 1000000, "maxTokens": 384000, "tools": true, "vision": false, "temperature": 0 },
-    { "id": "deepseek-v4-pro", "ownedBy": "deepseek", "displayName": "DeepSeek V4 Pro", "family": "deepseek", "provider": "deepseek", "contextLength": 1000000, "maxTokens": 384000, "tools": true, "thinking": true, "includeReasoningInRequest": false, "dropParams": ["temperature", "top_p"] }
+    { "id": "deepseek-flash", "ownedBy": "deepseek", "displayName": "DeepSeek Flash (V4.1)", "family": "deepseek", "provider": "deepseek", "contextLength": 1000000, "maxTokens": 384000, "tools": true, "vision": true, "thinking": true, "includeReasoningInRequest": false }
   ]
 }
