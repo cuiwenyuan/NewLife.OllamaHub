@@ -21,8 +21,9 @@
 - 证书须被 VS 机器**真正**信任（自签导出 `hub.cer` 导入「受信任的根证书颁发机构」；存储位置错装成"个人"则仍报未信任）；Hub 无鉴权，暴露局域网=Key 暴露，**仅限可信网络/VPN**。
 
 ## 供应商预设与模型名
-- `ProviderPresets.cs` 内置 11 家：9 OpenAI 兼容(deepseek/qwen/kimi/glm/siliconflow/volcengine/hunyuan/modelscope/openrouter)+anthropic+gemini。
-- 模型 Id 漂移（2026-08-04 DeepSeek 弃用 `deepseek-chat`/`reasoner`→全升 2026-08 现行名）。**新增/核对预设务必联网核实官方当前模型名，禁凭记忆填旧名**。siliconflow/modelscope/openrouter 未改。
+- `ProviderPresets.cs` 内置 12 家（含 GLM 双通道 glm/zhipu）：9 OpenAI 兼容(deepseek/qwen/kimi/glm/zhipu/siliconflow/volcengine/hunyuan/modelscope/openrouter)+anthropic+gemini。
+- 模型 Id 漂移频繁，**新增/核对预设务必联网核实官方当前模型名，禁凭记忆填旧名**；无线上端点的预告模型（如 Qwen4）不写入，避免 404。
+- 2026-11-13 全量刷新后现行：deepseek=`deepseek-flash`(V4.1-1017,1M/384K,视觉)+`deepseek-v4-pro`(纯文本)；kimi=`kimi-k3.1-pro`/`-highspeed`/k3/k2.7-code/k2.6；glm/zhipu=`glm-5.3`+`glm-5.3-flash`+`glm-5.3-flashx`…；gemini=`gemini-4-hydrogen`(1M 统一输入输出)/`carbon`/`argon`+3.8-flash；hunyuan=`hy4`(1M/64K,视觉)/`hy3`；volcengine 豆包 2.1 `pro/lite-260915`(1024K/256K)+evolving；anthropic=`claude-fable-5-2`/opus-5-5/sonnet-5-5/haiku-5-5；openrouter 含 gpt-6-astra/gemini-4/tencent-hy4。
 
 ## 可视化菜单（p/k/c）
 - `HubAgentService` 三嵌套子类继承 `BaseCommandHandler`(PresetMenuCommand=p/ApiKeyMenuCommand=k/WizardMenuCommand=c)，`ServiceBase.Command` 自动扫描注册——取代过时 `AddMenu`。
@@ -33,7 +34,7 @@
 - 服务安装无法在沙箱完成（`exe -i` 非管理员提权崩溃）→ 用户本机右键 exe→管理员→菜单 2。
 - 验证修复编入单文件：菜单用 `ReadKey`（stdin 重定向抛异常）→ 用 Python UTF-16LE(`s.encode("utf-16-le")`) 在 exe/dll 检索中文文案。
 - 前台 `--serve`（双横杠，stdin 重定向下可靠）；`-run` 抛 `ReadKey` 异常。
-- self-test `.exe self-test` 零框架，退出码=失败数，当前 211/0 全绿（2026-08-07 +3 Responses 测试 + 增量流式断言重写 + 7 三监听 schema 断言）。
+- self-test `.exe self-test` 零框架，退出码=失败数，当前 **303/0 全绿**（2026-11-13 模型预设刷新后；历史：2026-08 为 211）。
 - exe 版本号=构建日期+时间(csproj：`AssemblyVersion=1.0.<距2000-01-01天数>.<自午夜半秒数>`、`FileVersion=1.0.<YYYY>.<MMDD>`，用户 2026-08-05 明确要求，勿改固定)。
 - 端口：hub 本机 127.0.0.1:11434(local) / 局域网明文 0.0.0.0:11436(lanHttp) / 局域网 HTTPS 0.0.0.0:11435(lanHttps)；mock openai :9099；fake ollama :11435。
 
