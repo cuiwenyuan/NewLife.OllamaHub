@@ -570,18 +570,18 @@ namespace NewLife.OllamaHub.Commands
             // 一旦有人重命名或删除其中某个，self-test 立即 FAIL，把"静默漂移"变成"编译期可见的回归"。
             var expected = new Dictionary<String, String[]>(StringComparer.OrdinalIgnoreCase)
             {
-                ["deepseek"]   = new[] { "deepseek-flash" },
+                ["deepseek"]   = new[] { "deepseek-flash", "deepseek-v4-pro" },
                 ["qwen"]       = new[] { "qwen3.8-max", "qwen3.8-flash", "qwen3.8-27b" },
-                ["kimi"]       = new[] { "kimi-k3" },
-                ["glm"]        = new[] { "glm-5.3", "glm-5.3-flash" },
-                ["zhipu"]      = new[] { "zhipu-glm-5.3", "zhipu-glm-5.3-flash" },
+                ["kimi"]       = new[] { "kimi-k3.1-pro", "kimi-k3" },
+                ["glm"]        = new[] { "glm-5.3", "glm-5.3-flash", "glm-5.3-flashx" },
+                ["zhipu"]      = new[] { "zhipu-glm-5.3", "zhipu-glm-5.3-flash", "zhipu-glm-5.3-flashx" },
                 ["siliconflow"]= new[] { "deepseek-ai/DeepSeek-V4-Flash-0731", "zhipuai/GLM-5.3" },
-                ["volcengine"] = new[] { "doubao-seed-2-1-pro-260915", "doubao-seed-evolving" },
-                ["hunyuan"]    = new[] { "hy3", "hy4-preview" },
-                ["modelscope"] = new[] { "Qwen/Qwen3.8-27B", "deepseek-ai/DeepSeek-V4-Flash-0731" },
-                ["openrouter"] = new[] { "openai/gpt-6-astra", "anthropic/claude-fable-5.1", "google/gemini-3.8-flash" },
-                ["anthropic"]  = new[] { "claude-opus-5-5", "claude-fable-5-1" },
-                ["gemini"]     = new[] { "gemini-3.1-pro-preview", "gemini-3.8-flash" },
+                ["volcengine"] = new[] { "doubao-seed-2-1-pro-260915", "doubao-seed-2-1-lite-260915", "doubao-seed-evolving" },
+                ["hunyuan"]    = new[] { "hy3", "hy4" },
+                ["modelscope"] = new[] { "Qwen/Qwen3.8-27B", "deepseek-ai/DeepSeek-V4.1-Flash-1017" },
+                ["openrouter"] = new[] { "openai/gpt-6-astra", "anthropic/claude-fable-5.2", "google/gemini-4-hydrogen" },
+                ["anthropic"]  = new[] { "claude-fable-5-2", "claude-opus-5-5" },
+                ["gemini"]     = new[] { "gemini-4-hydrogen", "gemini-4-carbon" },
             };
 
             // 预建 (providerId -> 模型 Id 集合)
