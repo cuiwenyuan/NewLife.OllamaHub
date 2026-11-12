@@ -6,19 +6,25 @@
 
 ---
 
-## [Unreleased] - 模型预设全量刷新（待发版）
+## [Unreleased] - 模型预设全量刷新（2026-11，待发版）
 
-> 对应待打 tag；本版将 12 家供应商模型预设一次性对齐到 2026-09 各家官方最新 Id 与端点。
+> 对应待打 tag；本版将 12 家供应商模型预设对齐到 2026-11 各家官方最新 Id 与端点（在 2026-09/10 一轮基础上增量刷新）。
 
-### 供应商预设升级（12 家模型全量刷新）
-- **DeepSeek 直接切换为 `deepseek-flash`**：2026-09-10 官方将 V4 Flash / V4 Flash Vision Exp 统一为规范名 `deepseek-flash`（原生多模态 + 可切换思考），`deepseek-v4-pro` 于 2026-09-14 起自动回落到 V4.1 Flash 并退役——不再保留任何 v4 别名（`deepseek-v4-flash` / `deepseek-v4-pro` / `deepseek-v4-flash-vision-exp` 全部移除）。
-- **腾讯混元迁移到 TokenHub**：混元旗舰 HY3 / Hy4 现经腾讯云 TokenHub（`https://tokenhub.tencentmaas.com/v1`）暴露，旧 `api.hunyuan.cloud.tencent.com` 的 `hunyuan-a13b` 等不在 TokenHub 体系；`hunyuan` 预设基址与模型同步改为 `hy3` / `hy4-preview`。
-- **硅基流动 / ModelScope 升到 V4 系列**：DeepSeek 由 V3/V3.1/R1 升到 `DeepSeek-V4-Flash-0731` / `-Vision-Exp` / `-Pro-0813`（ModelScope 另含 `DeepSeek-V4.1-Flash`）；新增智谱 `zhipuai/GLM-5.3`(+Flash)、`Qwen/Qwen3.8-2.4T-A95B`（硅基流动）/ `Qwen/Qwen3.8-27B`、`Qwen/Qwen3.8-Flash-Next`（ModelScope）、`ZhipuAI/GLM-5.3`（ModelScope）、`moonshotai/Kimi-K3`（硅基流动）。
-- **火山方舟**：保留 `doubao-seed-2.1`(260628) 与统一 ID 思考模型 `doubao-seed-evolving`（经核实仍在线），新增旗舰快照 `doubao-seed-2-1-pro-260915`。
-- **OpenRouter**：新增 `openai/gpt-6-astra`、`anthropic/claude-fable-5.1`、`google/gemini-3.8-flash`（保留 gpt-5.6 / claude-opus-5 / gemini-3.7-flash）。
-- **Anthropic**：新增 `claude-opus-5-5` / `claude-fable-5-1`（保留 opus-5 / sonnet-5 / fable-5 / haiku-4-5）。
-- **Google Gemini**：新增 `gemini-3.8-flash`（保留 3.1 Pro / 3.7 Flash / 3.5 Flash-Lite）。
-- **Kimi 未加 `kimi-k2.8-preview`**：经核实 K2.8 Preview 仅在 Kimi Code 订阅服务，官方开放 API（`api.moonshot.cn/v1`）无此 Id，加上会 404；`kimi` 预设维持 `kimi-k3` / `kimi-k2.7-code` / `kimi-k2.6`。
+### 本轮（2026-11）增量
+- **DeepSeek**：新增旗舰 `deepseek-v4-pro`（V4-Pro-0813，1M / 384K，纯文本深度推理）；`deepseek-flash` 现指向 V4.1-Flash-1017（1M / 384K，原生视觉 + 可切换思考）。
+- **Kimi**：新增 `kimi-k3.1-pro`（K3 后训练强化版，2.8T/104B，1M，原生视觉，思考常开）与高速版 `kimi-k3.1-pro-highspeed`；K4 尚未发布，保留 `kimi-k3` / `kimi-k2.7-code` / `kimi-k2.6`。
+- **智谱 GLM**：新增 `glm-5.3-flashx`（约 200 tok/s 极速版），BigModel 与 Z.ai 双通道同步（Z.ai 侧命名空间 `zhipu-glm-5.3-flashx`）。GLM-5.4/5.5 仍为路线图，未发布。
+- **Google Gemini**：升级 **Gemini 4 家族** —— `gemini-4-hydrogen`（2026-11-12，取代 3.8 Flash，1M 统一输入输出）、`gemini-4-carbon`（11-10 GA）、`gemini-4-argon`；保留 `gemini-3.8-flash` / `gemini-3.1-pro-preview`。
+- **腾讯混元**：Hy4 正式版上线，模型 Id 改为 `hy4`（1M / 64K，首次支持图像理解与电脑操作），取代 `hy4-preview`；`hy3` 保留。
+- **火山方舟**：校正 `doubao-seed-2-1-pro-260915` 为 1024K / 256K（原值偏小），新增 `doubao-seed-2-1-lite-260915`，`doubao-seed-evolving` 同步 1024K / 256K。
+- **Anthropic**：新增 `claude-fable-5-2`（11-09，1M / 128K）、`claude-sonnet-5-5`、`claude-haiku-5-5`；保留 opus-5.5 / opus-5 / sonnet-5 / fable-5.1 / haiku-4.5。
+- **OpenRouter**：新增 `anthropic/claude-fable-5.2`、`anthropic/claude-opus-5.5`、`google/gemini-4-hydrogen`、`google/gemini-4-carbon`、`tencent/hy4`；保留 gpt-6-astra / gpt-5.6 / opus-5 / gemini-3.8-flash。
+- **ModelScope**：DeepSeek 升到 `deepseek-ai/DeepSeek-V4.1-Flash-1017` 最新检查点。
+- **Qwen 未升级**：Qwen4 系列 2026-11 仅放出预告与代码标识，截至 11-13 无线上端点，写入会 404，故保留 `qwen3.8-*` / `qwen3.7-*`。
+- **硅基流动未改动**：V4 系列 / GLM-5.3 / Qwen3.8 / Kimi-K3 均仍在线，K3.1 尚未上架。
+
+### 上一轮（2026-09/10，同批未发版）
+- DeepSeek 直切 `deepseek-flash`（移除 v4 别名）；混元迁移 TokenHub（`https://tokenhub.tencentmaas.com/v1`）；硅基流动/ModelScope 升 V4；火山新增 260915；OpenRouter/Anthropic/Gemini 新增 2026-09 模型；GLM 补齐 GLM-5.3 / GLM-5.3-Flash。
 
 ### 文档与示例
 - `docs/providers.md` 12 家 + 2 家原生协议表格刷新到上述模型 Id / 端点；`examples/settings.*.json`（deepseek / siliconflow / gemini / anthropic / vision / newmodels）同步。

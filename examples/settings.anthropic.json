@@ -12,11 +12,13 @@
     }
   ],
   "models": [
-    { "id": "claude-opus-5-5", "ownedBy": "anthropic", "displayName": "Claude Opus 5.5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true },
-    { "id": "claude-opus-5", "ownedBy": "anthropic", "displayName": "Claude Opus 5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true },
-    { "id": "claude-sonnet-5", "ownedBy": "anthropic", "displayName": "Claude Sonnet 5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true },
+    { "id": "claude-fable-5-2", "ownedBy": "anthropic", "displayName": "Claude Fable 5.2", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 128000, "tools": true, "vision": true },
     { "id": "claude-fable-5-1", "ownedBy": "anthropic", "displayName": "Claude Fable 5.1", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true, "vision": true },
-    { "id": "claude-fable-5", "ownedBy": "anthropic", "displayName": "Claude Fable 5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true, "vision": true },
+    { "id": "claude-opus-5-5", "ownedBy": "anthropic", "displayName": "Claude Opus 5.5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 128000, "tools": true, "vision": true },
+    { "id": "claude-opus-5", "ownedBy": "anthropic", "displayName": "Claude Opus 5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true },
+    { "id": "claude-sonnet-5-5", "ownedBy": "anthropic", "displayName": "Claude Sonnet 5.5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 128000, "tools": true, "vision": true },
+    { "id": "claude-sonnet-5", "ownedBy": "anthropic", "displayName": "Claude Sonnet 5", "family": "anthropic", "provider": "anthropic", "contextLength": 1000000, "maxTokens": 16384, "tools": true },
+    { "id": "claude-haiku-5-5", "ownedBy": "anthropic", "displayName": "Claude Haiku 5.5", "family": "anthropic", "provider": "anthropic", "contextLength": 200000, "maxTokens": 8192, "tools": true },
     { "id": "claude-haiku-4-5", "ownedBy": "anthropic", "displayName": "Claude Haiku 4.5", "family": "anthropic", "provider": "anthropic", "contextLength": 200000, "maxTokens": 8192, "tools": true }
   ]
 }
