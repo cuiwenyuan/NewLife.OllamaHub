@@ -245,7 +245,7 @@ del ""%~f0"" >nul 2>&1
             return urls[0];
         }
 
-        /// <summary>当前程序集版本（如 1.0.0.0）。</summary>
+        /// <summary>当前程序集版本（日期式 4 段，如 1.3.2026.1113）。</summary>
         internal static String GetCurrentVersion() =>
             typeof(UpgradeCommand).Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
 

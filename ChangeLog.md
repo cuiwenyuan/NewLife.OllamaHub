@@ -2,13 +2,24 @@
 
 本文件记录所有发版（Git tag）的主要变化。**每个版本对应一个独立 tag**，单文件 exe 发布包见 [GitHub Releases](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases)。
 
-版本号规则：exe 文件版本采用「构建日期 + 时间」编码；语义版本由 Release tag 承载。
+版本号规则：对齐 NewLife 全家桶主干库（`NewLife.Core` / `XCode` / `Redis` / `Remoting` / `Stardust`），
+`AssemblyVersion = FileVersion = 主.次.年.月日`（如 `1.3.2026.1113`），tag 命名为 `v主.次.年.月日`；
+`ProductVersion` 由 SDK 追加 `+<提交号>`，可直接从 exe 追溯源码版本。
+只含日期不含时刻 → **同一天任意次构建版本号恒定（幂等），一天只有一个版本号**；年月日单调递增 → 升级比较天然正确。
 
 ---
 
 ## [Unreleased] - .NET 10 双目标 + 模型预设全量刷新（2026-11，待发版）
 
 > 对应待打 tag；本版新增 **.NET 10 目标框架**（与 .NET 8 并列，发布两个单文件产物），并将 12 家供应商模型预设对齐到 2026-11 各家官方最新 Id 与端点。
+
+### 版本号规则改为日期式（对齐 NewLife 主干库）
+
+- **规则**：`AssemblyVersion` / `FileVersion` 统一为 `主.次.年.月日`，tag 同步改为 `v主.次.年.月日`（例 `v1.3.2026.1113`）。此前 `AssemblyVersion` 为「距 2000-01-01 天数 + 自午夜半秒数」，同一天每次构建都会变，无法满足「一天一个版本号」。
+- **幂等**：版本号只含日期不含时刻，同一天任意次构建结果完全相同；年月日部分单调递增，`upgrade` 的版本比较逻辑无需任何改动。
+- **可追溯**：`ProductVersion` = `1.3.2026.1113+<提交 sha>`，从 exe 右键属性即可追溯对应源码提交。
+- **CI 单一来源**：tag 触发时版本号完全取自 tag（`-p:Version=`），并校验 tag 必须为 4 段格式；分支构建由 csproj 按当天日期推导。发布前新增 `Verify published version` 步骤，产物 `FileVersion` 与 tag 不一致即失败。
+- 主次版本（`BaseVersion`）为语义版本，随功能/兼容性手工递增；当前 `1.3`。
 
 ### 目标框架：新增 .NET 10（双目标）
 

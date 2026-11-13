@@ -24,6 +24,9 @@ NewLife.OllamaHub.exe upgrade
 
 ## 版本与发布
 
-- 程序集语义化版本（`Version`），可通过 `/api/version` 或 `upgrade --check` 查看当前版本。
-- 打 Git tag（如 `v1.0.0`）会触发 GitHub Actions 自动构建，并发布 **两个**单文件 exe：`NewLife.OllamaHub-net8.0.exe` 与 `NewLife.OllamaHub-net10.0.exe`。
+- **版本号规则对齐 NewLife 全家桶主干库**：`AssemblyVersion` = `FileVersion` = `主.次.年.月日`，tag 同名（例 `v1.3.2026.1113`）。
+  只含日期不含时刻 → 同一天任意次构建版本号恒定（一天一个版本号）；年月日单调递增 → 升级比较天然正确。
+- 查看当前版本：`upgrade --check`，或 `GET /api/status` 的 `version` 字段。（`GET /api/version` 返回的是**Ollama 协议版本**，用于客户端探测兼容性，不是本程序版本。）
+- 从 exe 右键「属性 → 详细信息」可看到 `文件版本 1.3.2026.1113`、`产品版本 1.3.2026.1113+<提交 sha>`，`sha` 即对应源码提交，便于确认线上跑的是哪次构建。
+- 打 Git tag（如 `v1.3.2026.1113`）会触发 GitHub Actions 自动构建，并发布 **两个**单文件 exe：`NewLife.OllamaHub-net8.0.exe` 与 `NewLife.OllamaHub-net10.0.exe`。tag 必须是 4 段格式，否则 CI 直接失败。
 - 升级前建议备份 `settings.json`。
