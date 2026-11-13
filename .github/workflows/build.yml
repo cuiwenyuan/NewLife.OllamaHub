@@ -7,16 +7,24 @@ on:
   pull_request:
     branches: [ main, master ]
 
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET 8
+      # 双目标（net8.0 + net10.0）需要能识别 net10.0 的 SDK，故 8 / 10 一并安装：
+      # net8.0 产物供只装有 .NET 8 运行时的机器使用，net10.0 产物供新环境使用。
+      - name: Setup .NET SDKs (8.0 + 10.0)
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       - name: Derive version
         id: ver
@@ -31,25 +39,45 @@ jobs:
       - name: Restore
         run: dotnet restore src/NewLife.OllamaHub/NewLife.OllamaHub.csproj
 
-      - name: Build
+      - name: Build (net8.0 + net10.0)
         run: dotnet build src/NewLife.OllamaHub/NewLife.OllamaHub.csproj -c Release --no-restore -p:Version=${{ steps.ver.outputs.version }}
 
-      - name: Self-test
+      - name: Self-test (net8.0)
         run: dotnet run --project src/NewLife.OllamaHub -c Release --no-build --framework net8.0 -- self-test
 
-      - name: Publish single-file (win-x64)
+      - name: Self-test (net10.0)
+        run: dotnet run --project src/NewLife.OllamaHub -c Release --no-build --framework net10.0 -- self-test
+
+      - name: Publish single-file (net8.0 / win-x64)
         if: startsWith(github.ref, 'refs/tags/v')
         run: >
           dotnet publish src/NewLife.OllamaHub/NewLife.OllamaHub.csproj
-          -c Release -r win-x64 --self-contained false
-          -p:PublishSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o publish
+          -c Release -f net8.0 -r win-x64 --self-contained false
+          -p:PublishSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o publish/net8.0
+
+      - name: Publish single-file (net10.0 / win-x64)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: >
+          dotnet publish src/NewLife.OllamaHub/NewLife.OllamaHub.csproj
+          -c Release -f net10.0 -r win-x64 --self-contained false
+          -p:PublishSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o publish/net10.0
+
+      # 两份 exe 文件名必须区分，否则 Release 页面无法让用户选择运行时
+      - name: Collect artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item publish/net8.0/NewLife.OllamaHub.exe  dist/NewLife.OllamaHub-net8.0.exe
+          Copy-Item publish/net10.0/NewLife.OllamaHub.exe dist/NewLife.OllamaHub-net10.0.exe
+          Get-ChildItem dist | Select-Object Name, Length
 
       - name: Upload artifact
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
           name: NewLife.OllamaHub
-          path: publish/NewLife.OllamaHub.exe
+          path: dist/*.exe
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -67,5 +95,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/NewLife.OllamaHub.exe
+          files: |
+            dist/NewLife.OllamaHub-net8.0.exe
+            dist/NewLife.OllamaHub-net10.0.exe
           generate_release_notes: true
