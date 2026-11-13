@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>小红书图文 · NewLife.OllamaHub</title>
+<style>
+  :root{
+    --bg:#0b0f14; --card:#0f1620; --fg:#e9f0f7; --dim:#8b98a8;
+    --blue:#4c9aff; --green:#3fd07a; --line:rgba(255,255,255,.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:#05080b; color:var(--fg);
+    font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Noto Sans SC",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .card{
+    position:relative; width:1080px; height:1440px; margin:0 auto 36px;
+    padding:92px 84px; overflow:hidden; display:flex; flex-direction:column;
+    background:
+      radial-gradient(900px 520px at 82% -8%, rgba(76,154,255,.16), transparent 62%),
+      radial-gradient(760px 460px at 8% 108%, rgba(63,208,122,.12), transparent 60%),
+      var(--card);
+    border-bottom:1px solid #000;
+  }
+  .num{position:absolute; top:52px; right:84px; font-size:30px; color:var(--dim); letter-spacing:2px;}
+  .kicker{font-size:26px; letter-spacing:6px; color:var(--blue); font-weight:600; margin-bottom:34px;}
+  h1{font-size:92px; line-height:1.16; margin:0 0 34px; font-weight:800; letter-spacing:-1px;}
+  h1 .hl{color:var(--blue);}
+  h1 .hg{color:var(--green);}
+  .sub{font-size:40px; line-height:1.55; color:#cfdae6; margin:0 0 44px; font-weight:400;}
+  .tags{display:flex; gap:18px; flex-wrap:wrap; margin-top:auto;}
+  .tags span{font-size:28px; padding:14px 26px; border:1px solid var(--line); border-radius:999px; color:#b9c6d4; background:rgba(255,255,255,.03);}
+  .foot{position:absolute; left:84px; bottom:64px; font-size:26px; color:var(--dim); letter-spacing:1px;}
+  .big{font-size:60px; line-height:1.42; font-weight:700; margin:0 0 30px;}
+  ul.bullets{list-style:none; padding:0; margin:0;}
+  ul.bullets li{font-size:40px; line-height:1.5; padding:26px 0; border-bottom:1px dashed var(--line); display:flex; gap:22px; align-items:flex-start;}
+  ul.bullets li b{color:var(--green); font-weight:700;}
+  ul.bullets li .k{color:var(--blue); font-weight:800; min-width:58px;}
+  .note{font-size:34px; line-height:1.6; color:var(--dim); margin-top:36px;}
+  .flow{display:flex; flex-direction:column; gap:0; margin-top:18px;}
+  .flow .node{background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:24px; padding:34px 38px; font-size:36px; line-height:1.45;}
+  .flow .node b{color:var(--fg);}
+  .flow .node small{display:block; font-size:26px; color:var(--dim); margin-top:10px;}
+  .flow .arrow{text-align:center; color:var(--blue); font-size:40px; padding:14px 0;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:14px;}
+  .grid .cell{background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:20px; padding:26px 30px; font-size:32px; color:#dbe6f1;}
+  .grid .cell.e{grid-column:1 / -1;}
+  .step{display:flex; gap:26px; align-items:flex-start; padding:32px 0; border-bottom:1px dashed var(--line);}
+  .step .n{flex:0 0 76px; height:76px; border-radius:22px; background:linear-gradient(160deg,var(--blue),#2f6fd0); color:#06121f; font-size:36px; font-weight:900; display:flex; align-items:center; justify-content:center;}
+  .step .t{font-size:40px; line-height:1.42; font-weight:700;}
+  .step .d{font-size:28px; color:var(--dim); margin-top:10px; line-height:1.5;}
+  .cta{font-size:44px; line-height:1.5; margin-top:8px;}
+  .mono{font-family:"Cascadia Code",Consolas,"Courier New",monospace; font-size:30px; color:var(--green); word-break:break-all;}
+</style>
+</head>
+<body>
+
+<!-- 1 封面 -->
+<div class="card">
+  <div class="num">01 / 08</div>
+  <div class="kicker">NewLife.OllamaHub</div>
+  <h1 style="font-size:80px;">把 <span class="hl">DeepSeek</span><br>接进 <span class="hl">GitHub Copilot</span></h1>
+  <p class="sub">VS Code 与 Visual Studio 两端都支持。<br>不改客户端，不装 Docker。</p>
+  <div class="tags"><span>开源</span><span>.NET 8/10</span><span>绿色单文件</span><span>12 家供应商</span></div>
+  <div class="foot">github.com/cuiwenyuan/NewLife.OllamaHub</div>
+</div>
+
+<!-- 2 痛点 -->
+<div class="card">
+  <div class="num">02 / 08</div>
+  <div class="kicker">痛点</div>
+  <p class="big">GitHub Copilot 的模型，<br>你好像只有两个选择</p>
+  <ul class="bullets">
+    <li><span class="k">A</span><span>用官方模型：体验稳，<b>账单肉疼</b></span></li>
+    <li><span class="k">B</span><span>自己折腾：Docker、代理、协议转换，<b>劝退</b></span></li>
+  </ul>
+  <p class="note">那有没有第三条路？<br>有——让 GitHub Copilot 以为你在连本地 Ollama。</p>
+</div>
+
+<!-- 3 解法 -->
+<div class="card">
+  <div class="num">03 / 08</div>
+  <div class="kicker">解法</div>
+  <h1>一个 exe，<br><span class="hg">伪装成本地 Ollama</span></h1>
+  <ul class="bullets">
+    <li><span class="k">1</span><span>在本机起服务：<b>127.0.0.1:11434</b></span></li>
+    <li><span class="k">2</span><span>客户端（VS Code / Visual Studio）以为在跟 Ollama 说话</span></li>
+    <li><span class="k">3</span><span>请求被转发给 <b>DeepSeek / GLM / Kimi</b> 等上游</span></li>
+  </ul>
+  <div class="foot">不用改客户端 · 不用装依赖</div>
+</div>
+
+<!-- 4 原理 -->
+<div class="card">
+  <div class="num">04 / 08</div>
+  <div class="kicker">原理</div>
+  <p class="big">一次请求，是这样走的</p>
+  <div class="flow">
+    <div class="node"><b>GitHub Copilot</b><small>VS Code / Visual Studio 两端，以为在调用本地 Ollama 模型</small></div>
+    <div class="arrow">↓</div>
+    <div class="node"><b>OllamaHub　127.0.0.1:11434</b><small>接收 Ollama 协议，翻译成上游协议</small></div>
+    <div class="arrow">↓</div>
+    <div class="node"><b>DeepSeek / 通义千问 / Kimi / GLM …</b><small>OpenAI · Anthropic · Gemini · Responses 多协议适配</small></div>
+  </div>
+</div>
+
+<!-- 5 12家 -->
+<div class="card">
+  <div class="num">05 / 08</div>
+  <div class="kicker">内置预设</div>
+  <p class="big">12 家供应商<br>改一行 JSON 就换模型</p>
+  <div class="grid">
+    <div class="cell">DeepSeek</div>
+    <div class="cell">通义千问</div>
+    <div class="cell">Kimi</div>
+    <div class="cell">智谱 GLM（BigModel）</div>
+    <div class="cell">智谱 GLM（Z.ai）</div>
+    <div class="cell">硅基流动</div>
+    <div class="cell">火山方舟</div>
+    <div class="cell">腾讯混元</div>
+    <div class="cell">ModelScope</div>
+    <div class="cell">OpenRouter</div>
+    <div class="cell">Anthropic</div>
+    <div class="cell">Google Gemini</div>
+  </div>
+  <div class="foot">双通道并存：BigModel 与 Z.ai 可同时启用</div>
+</div>
+
+<!-- 6 三步 -->
+<div class="card">
+  <div class="num">06 / 08</div>
+  <div class="kicker">上手</div>
+  <p class="big">三步就能跑起来</p>
+  <div class="step">
+    <div class="n">1</div>
+    <div><div class="t">下载单文件 exe，按运行时选版本</div><div class="d">.NET 8 / 10 双版本，不写注册表、不装第三方依赖</div></div>
+  </div>
+  <div class="step">
+    <div class="n">2</div>
+    <div><div class="t">填 API Key</div><div class="d">菜单里 setkey，或直接改 settings.json</div></div>
+  </div>
+  <div class="step">
+    <div class="n">3</div>
+    <div><div class="t">在 VS Code / Visual Studio 里选 Ollama</div><div class="d">模型提供程序选 Ollama，Endpoint 填本机 11434，模型列表直接拉出来</div></div>
+  </div>
+</div>
+
+<!-- 7 进阶 -->
+<div class="card">
+  <div class="num">07 / 08</div>
+  <div class="kicker">进阶玩法</div>
+  <p class="big">不只是本地自嗨</p>
+  <ul class="bullets">
+    <li><span class="k">◆</span><span><b>局域网共享</b>：一台机器当团队模型网关，HTTP / HTTPS 双通道</span></li>
+    <li><span class="k">◆</span><span><b>多协议适配</b>：OpenAI / Anthropic / Gemini / Responses</span></li>
+    <li><span class="k">◆</span><span><b>自带自检</b>：306 项断言，升级不怕踩雷</span></li>
+    <li><span class="k">◆</span><span><b>可装成服务</b>：开机自启，后台常驻</span></li>
+  </ul>
+</div>
+
+<!-- 8 结尾 -->
+<div class="card">
+  <div class="num">08 / 08</div>
+  <div class="kicker">项目在这</div>
+  <h1>开源免费<br><span class="hg">欢迎 Star</span></h1>
+  <p class="cta">GitHub 搜：</p>
+  <p class="mono">cuiwenyuan/NewLife.OllamaHub</p>
+  <p class="note" style="margin-top:44px;">技术栈：.NET 8 / .NET 10 双目标 · NewLife 生态 · 单文件发布<br>非 .NET 开发者也能只用 exe，不用看源码。</p>
+  <div class="tags"><span>你写代码常用哪个国产模型？评论区聊聊</span></div>
+</div>
+
+</body>
+</html>
