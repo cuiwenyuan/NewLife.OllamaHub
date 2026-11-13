@@ -1,8 +1,8 @@
 # NewLife.OllamaHub — 项目长期记忆
 
 ## 硬约束
-- 仅引用 NewLife 生态 NuGet：`NewLife.Core` + `NewLife.Agent`(10.17.2026.801)；无 ASP.NET Core、无第三方 NuGet。
-- net8.0；`ImplicitUsings` 开（泛型集合免 using，非泛型 `IList`/`IDictionary` 写全称）。
+- 仅引用 NewLife 生态 NuGet：`NewLife.Core` 12.0.2026.1024 + `NewLife.Agent` 10.18.2026.1024；无 ASP.NET Core、无第三方 NuGet。**升级 NewLife.Core 跨大版本（11→12）后实测编译 0 错误、双框架 self-test 306/0、HTTP 端点冒烟全通**，本库只用了 `HttpServer`/`JsonHelper`/`XTrace`/`NetUri`/`Setting` 等稳定 API。
+- **双目标 `net8.0;net10.0`**（`SelfContained=false` + `PublishSingleFile=true` + `RuntimeIdentifier=win-x64`，两个产物均为非自包含单文件）：发布为 `NewLife.OllamaHub-net8.0.exe`（需 .NET 8 运行时）与 `NewLife.OllamaHub-net10.0.exe`（需 .NET 10 运行时），**装错版本直接起不来**；功能完全一致。构建全部目标需 SDK 10；只有 SDK 8 时用 `-p:TargetFrameworks=net8.0` 单构建。`dotnet run` 多目标下**必须带 `-f net8.0|net10.0`**。`ImplicitUsings` 开（泛型集合免 using，非泛型 `IList`/`IDictionary` 写全称）。
 - 服务化用 `NewLife.Agent.ServiceBase` 派生，不用 `Microsoft.Extensions.Hosting`。
 - 服务名 `ServiceName = "NewLife.OllamaHub"`（含点）；旧 `NewLifeOllamaHub`（无点）已弃用。
 
@@ -12,6 +12,8 @@
 - 统一适配层 `Core/IUpstreamAdapter` + `UpstreamAdapterFactory`(openai/anthropic/gemini/google/responses，未知回落 openai)。Anthropic=`x-api-key`+`anthropic-version`、Gemini=key 拼 `?alt=sse&key=`、Responses=`/v1/responses`（input items + max_output_tokens + reasoning.effort）；多模态 images→ OpenAI image_url / Anthropic source.base64 / Gemini inline_data。
 - 工具 `ToolSchemaSanitizer.Sanitize` 递归删 `$schema`/`definitions`/`$defs`/`title`/`examples`/`additionalProperties`/`x-*`。
 - HTTP 端点：Ollama 原生 `/api/tags`/`/api/chat`/`/api/generate` + **必须**保留 `POST /v1/chat/completions`、`GET /v1/models`（VS "Ollama" BYO 是 OpenAI 客户端，只打 `/v1/*`，缺失裸 404）。ollama 模式走 `UpstreamClient.RelayAsync`。
+- **`UpgradeCommand.PickAssetUrl` 按当前 TFM 挑 Release 资产**（`CurrentTargetFramework`，`#if NET10_0_OR_GREATER` → `net10.0`，否则 `net8.0`）：多产物后**禁止回退成"盲取首个 `browser_download_url`"**，否则 net8 用户会被升级成 net10 产物、机器无 .NET 10 运行时直接起不来；匹配不到才回退首个并打印告警（兼容老的单产物 Release）。self-test 3 条断言守护。
+- 证书加载条件编译：`#if NET9_0_OR_GREATER` 用 `X509CertificateLoader.LoadPkcs12FromFile`（消除 SYSLIB0057），net8.0 目标保持 `X509Certificate2` 构造。
 
 ## 配置与三监听（2026-08-06 双监听；2026-08-07 加 lanHttp）
 - `HubSettings` 三独立节点（不向后兼容）：`Local`（明文 HTTP，默认 enabled/127.0.0.1/11434）+ `LanHttp`（明文 HTTP，默认 disabled/0.0.0.0/11436/无证书）+ `LanHttps`（TLS，默认 disabled/0.0.0.0/11435/`certificate`(PFX)/`certPassword`）。旧顶层 `url`/`host`/`port`/`httpsPort`/`certificate`/`certPassword` **已删，不再兼容**。`Normalize()` 归一化三子对象；`ProviderPresets` 默认构造改无参 `new HubSettings()`。
@@ -34,12 +36,12 @@
 - 服务安装无法在沙箱完成（`exe -i` 非管理员提权崩溃）→ 用户本机右键 exe→管理员→菜单 2。
 - 验证修复编入单文件：菜单用 `ReadKey`（stdin 重定向抛异常）→ 用 Python UTF-16LE(`s.encode("utf-16-le")`) 在 exe/dll 检索中文文案。
 - 前台 `--serve`（双横杠，stdin 重定向下可靠）；`-run` 抛 `ReadKey` 异常。
-- self-test `.exe self-test` 零框架，退出码=失败数，当前 **303/0 全绿**（2026-11-13 模型预设刷新后；历史：2026-08 为 211）。
+- self-test `.exe self-test` 零框架，退出码=失败数，当前 **306/0 全绿**（net8.0 与 net10.0 各跑一遍均 306/0；历史：2026-11 预设刷新 303，2026-08 为 211）。
 - exe 版本号=构建日期+时间(csproj：`AssemblyVersion=1.0.<距2000-01-01天数>.<自午夜半秒数>`、`FileVersion=1.0.<YYYY>.<MMDD>`，用户 2026-08-05 明确要求，勿改固定)。
 - 端口：hub 本机 127.0.0.1:11434(local) / 局域网明文 0.0.0.0:11436(lanHttp) / 局域网 HTTPS 0.0.0.0:11435(lanHttps)；mock openai :9099；fake ollama :11435。
 
 ## GitHub Release / 推送
-- 推送 `v*` tag（如 `git tag v1.0.0 && git push origin v1.0.0`）→ `.github/workflows/build.yml` 自动 build+publish+`softprops/action-gh-release@v2`，用内置 GITHUB_TOKEN，无需 PAT。CI 仅覆盖 `Version=tag`，文件版本仍走日期+时间。
+- 推送 `v*` tag（如 `git tag v1.0.0 && git push origin v1.0.0`）→ `.github/workflows/build.yml` 自动 build+publish+`softprops/action-gh-release@v2`，用内置 GITHUB_TOKEN，无需 PAT。CI 仅覆盖 `Version=tag`，文件版本仍走日期+时间。**CI 装 8.0.x + 10.0.x 两套 SDK**，两框架各跑 self-test，分别 `publish -f net8.0|net10.0`，再复制改名为 `dist/NewLife.OllamaHub-net8.0.exe` / `-net10.0.exe` 一并上传 Release。
 - `github.com:443` 间歇 SNI 阻断：先试常规 `git push origin main`；阻断复现（`curl --max-time 10 https://github.com` 超时）走 `api.github.com` Git Data API（`git credential fill` 取 Fine-grained PAT；PAT 已存 credential store，username=cuiwenyuan）。**纯文档/代码提交用 Git Data API 重建 commit 并精确对齐本地 SHA 的步骤（2026-08-08 实测通过）**：
   - **沙箱无法非交互取 PAT（2026-08-13 实测）**：`git credential fill` / `git-credential-manager get` 在沙箱里失败——前者报 `/dev/tty: No such device`（GCM 尝试交互提示），后者段错误（管道调用）；PowerShell `Add-Type` 运行时编译 .NET 也被安全策略拦截。但 `git ls-remote origin` 能正常解析凭据（git 自身调 GCM 成功），`git push` 却会因 SNI 重置触发 GCM 误判鉴权失败→重提示→同样失败。**结论**：沙箱内走 API 推送时，PAT 无法自动取得，需用户本机手动 `git push origin main <tag>`（其 GCM 正常），或向用户索取 PAT。
   1. `git log -1 --format='%an%x00%ae%x00%ad%x00%cn%x00%ce%x00%cd' --date=raw <SHA>` 取作者/提交者/日期；**日期须转成 ISO8601 带冒号时区（`2026-08-08T10:23:06+08:00`）**——`git cat-file` 给的 `+0800` 原样传给 API 会报 `not a valid date-time`，必须用 `datetime.fromtimestamp(epoch, tz=timezone(+8h)).isoformat()` 转成 `+08:00`；用正则把 `Name <email> epoch +tz` 拆成 name/email/date 三部分再分别传。
