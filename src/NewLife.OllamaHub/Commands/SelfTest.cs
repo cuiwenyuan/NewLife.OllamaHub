@@ -1097,6 +1097,17 @@ namespace NewLife.OllamaHub.Commands
             Assert("升级：GitHub 清单取 tag_name", gh.version == "2.0.0");
             Assert("升级：GitHub 清单取 asset url", gh.url == "http://x/b.exe");
 
+            // 双产物 Release：必须挑中与当前运行时匹配的 exe，不能盲取第一个（否则跨框架升级）
+            var curTfm = UpgradeCommand.CurrentTargetFramework;
+            Assert("升级：当前目标框架识别为 net8.0 或 net10.0", curTfm is "net8.0" or "net10.0");
+            var multi = UpgradeCommand.ParseManifest(
+                "{\"tag_name\":\"v3.0.0\",\"assets\":[" +
+                "{\"browser_download_url\":\"http://x/NewLife.OllamaHub-net8.0.exe\"}," +
+                "{\"browser_download_url\":\"http://x/NewLife.OllamaHub-net10.0.exe\"}]}");
+            Assert("升级：双产物按当前框架挑 exe", multi.url == "http://x/NewLife.OllamaHub-" + curTfm + ".exe");
+            var single = UpgradeCommand.ParseManifest("{\"tag_name\":\"v3.0.0\",\"assets\":[{\"browser_download_url\":\"http://x/NewLife.OllamaHub.exe\"}]}");
+            Assert("升级：单产物（文件名无框架标记）回退首个", single.url == "http://x/NewLife.OllamaHub.exe");
+
             var script = UpgradeCommand.BuildReplaceScript(1234, @"C:\svc\a.exe", @"C:\tmp\b.exe", "NewLifeOllamaHub");
             Assert("升级脚本：等待指定 PID", script.Contains("PID eq 1234"));
             Assert("升级脚本：执行 move /Y", script.Contains("move /Y"));

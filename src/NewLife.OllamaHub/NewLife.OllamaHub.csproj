@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- 双目标：net8.0（LTS，兼容面最广）+ net10.0（当前 LTS）
+         两者均为非自包含单文件发布，运行端需装对应大版本运行时，见 README「环境要求」。
+         构建 net10.0 需 .NET SDK 10；仅装 SDK 8 时可用 -p:TargetFrameworks=net8.0 只构建 net8.0。 -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- 单文件发布 + 仅依赖 NewLife 生态；InvariantGlobalization 去除系统区域依赖 -->
@@ -26,9 +29,10 @@
     <FileVersion>1.0.$(_BuildYear).$(_BuildMmdd)</FileVersion>
   </PropertyGroup>
   <ItemGroup>
-    <!-- 仅引用 NewLife 生态 NuGet，无任何第三方（含 Microsoft.Extensions.*） -->
-    <PackageReference Include="NewLife.Core" Version="11.18.2026.801" />
-    <PackageReference Include="NewLife.Agent" Version="10.17.2026.801" />
+    <!-- 仅引用 NewLife 生态 NuGet，无任何第三方（含 Microsoft.Extensions.*）
+         版本跟随上游最新稳定版；NewLife.Core 12.x 为大版本升级，升级后必须双框架回归 self-test -->
+    <PackageReference Include="NewLife.Core" Version="12.0.2026.1024" />
+    <PackageReference Include="NewLife.Agent" Version="10.18.2026.1024" />
   </ItemGroup>
   <ItemGroup>
     <!-- 内嵌 Web 管理面板 HTML（随单文件 exe 打包，离线可用） -->

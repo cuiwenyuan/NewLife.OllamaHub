@@ -124,7 +124,13 @@ public class OllamaHttpServer
             }
             try
             {
+#if NET9_0_OR_GREATER
+                // .NET 9+ 起「构造 X509Certificate2 直接读文件」已标记过时（SYSLIB0057），改用 X509CertificateLoader。
+                // 本项目证书固定为带私钥的 PKCS#12（.pfx/.p12），按内容解析，不依赖扩展名。
+                server.Certificate = X509CertificateLoader.LoadPkcs12FromFile(resolvedCert, opts.CertPassword ?? "", X509KeyStorageFlags.Exportable);
+#else
                 server.Certificate = new X509Certificate2(resolvedCert, opts.CertPassword ?? "", X509KeyStorageFlags.Exportable);
+#endif
             }
             catch (Exception ex)
             {

@@ -74,6 +74,15 @@ namespace NewLife.OllamaHub.Commands
                 XTrace.WriteLine("当前版本 {0}，远程版本 {1}。", cur, version);
                 if (!String.IsNullOrEmpty(notes)) XTrace.WriteLine("更新说明：{0}", notes);
 
+                // 多产物 Release 的误配告警：拿到的是另一个框架的 exe，替换后大概起不来
+                var tfmCur = CurrentTargetFramework;
+                if (!String.IsNullOrEmpty(tfmCur))
+                {
+                    var other = tfmCur == "net8.0" ? "-net10.0" : "-net8.0";
+                    if (exeUrl!.Contains(other, StringComparison.OrdinalIgnoreCase))
+                        XTrace.WriteLine("[警告] 远程产物是 {0} 版本，与当前运行时 {1} 不匹配；升级后可能因缺少对应 .NET 运行时无法启动，建议手工下载匹配版本。", other.TrimStart('-'), tfmCur);
+                }
+
                 if (cmp <= 0)
                 {
                     XTrace.WriteLine(cmp == 0 ? "已经是最新版本。" : "远程版本不高于当前，无需升级。");
@@ -187,8 +196,53 @@ del ""%~f0"" >nul 2>&1
             var notes = m.notes ?? m.body ?? "";
             var url = m.url;
             if (String.IsNullOrEmpty(url) && m.assets != null)
-                url = m.assets.Find(x => x?.browser_download_url != null)?.browser_download_url ?? "";
+                url = PickAssetUrl(m.assets) ?? "";
             return (version, url ?? "", notes);
+        }
+
+        /// <summary>当前运行时的目标框架短名（net8.0 / net10.0），用于在多产物 Release 中挑对 exe。</summary>
+        internal static String CurrentTargetFramework
+        {
+            get
+            {
+#if NET10_0_OR_GREATER
+                return "net10.0";
+#elif NET8_0_OR_GREATER
+                return "net8.0";
+#else
+                return "";
+#endif
+            }
+        }
+
+        /// <summary>
+        /// 从 Release 资产中挑选与当前运行时匹配的 exe。
+        /// 本项目同时发布 <c>-net8.0</c> 与 <c>-net10.0</c> 两个单文件产物，必须按框架挑：
+        /// 否则 net8 用户可能被升级成 net10 产物，而机器上没有 .NET 10 运行时会直接起不来。
+        /// 匹配不到时回退第一个下载地址，兼容早期只发单个 exe（文件名不带框架标记）的 Release。
+        /// </summary>
+        /// <param name="assets">Release 资产列表。</param>
+        internal static String? PickAssetUrl(List<UpgradeAsset> assets)
+        {
+            var urls = assets.Where(a => !String.IsNullOrEmpty(a?.browser_download_url))
+                             .Select(a => a!.browser_download_url!)
+                             .ToList();
+            if (urls.Count == 0) return null;
+
+            var tfm = CurrentTargetFramework;
+            if (!String.IsNullOrEmpty(tfm))
+            {
+                foreach (var u in urls)
+                {
+                    if (!u.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) continue;
+                    // 形如 NewLife.OllamaHub-net8.0.exe
+                    if (Path.GetFileNameWithoutExtension(u).EndsWith("-" + tfm, StringComparison.OrdinalIgnoreCase)) return u;
+                }
+            }
+
+            // 没找到框架匹配项：只有单个产物（老 Release）时这是正常路径；多产物时说明当前框架没有产物，
+            // 仍回退到首个以免升级功能直接失效，但由调用方日志提示用户手工确认。
+            return urls[0];
         }
 
         /// <summary>当前程序集版本（如 1.0.0.0）。</summary>
