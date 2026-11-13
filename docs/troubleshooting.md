@@ -28,6 +28,7 @@
 
 ## 服务启动失败 / 日志在哪
 
+- **双击后进程秒退、连窗口都没有**：几乎都是 .NET 运行时版本不匹配。本项目发布两个单文件产物——`NewLife.OllamaHub-net8.0.exe` 需 **.NET 8 运行时**，`NewLife.OllamaHub-net10.0.exe` 需 **.NET 10 运行时**，装错版本会直接起不来。执行 `dotnet --list-runtimes` 看本机 `Microsoft.NETCore.App` 有哪个大版本，换成匹配的 exe 即可。
 - 服务模式下日志在程序目录的 `Log/` 下（`XTrace` 落盘）。
 - 端口占用、配置错误会以中文日志提示，而非直接抛出堆栈。
 

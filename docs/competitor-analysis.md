@@ -12,7 +12,7 @@
 | 维度 | 竞品 | 我们的 OllamaHub |
 |---|---|---|
 | 定位 | VS 2026 / VS Code Copilot / Cursor / Continue.dev 的多供应商代理 | VS / VS Code Copilot + Ollama 客户端的多供应商代理 |
-| 语言/框架 | C# / **.NET 10** / **ASP.NET Core Minimal API** | C# / **.NET 8** / **NewLife Agent（无 ASP.NET）** |
+| 语言/框架 | C# / **.NET 10** / **ASP.NET Core Minimal API** | C# / **.NET 8 + .NET 10（双目标单文件）** / **NewLife Agent（无 ASP.NET）** |
 | 默认端口 | 11434 | 11434 |
 | 供应商数 | 9 家 | 11 预设（+ ollama 透传） |
 | 测试 | 336 xUnit 测试 | 168 项 self-test（+ 11 项端到端冒烟） |

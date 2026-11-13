@@ -16,14 +16,14 @@ NewLife.OllamaHub.exe upgrade
 版本清单兼容两种 JSON 形态：
 
 1. 普通清单：`{ "version": "1.2.3", "url": "<exe下载地址>", "notes": "..." }`
-2. GitHub `releases/latest`：自动取 `tag_name`（兼容前导 `v`）与首个 `browser_download_url`。
+2. GitHub `releases/latest`：自动取 `tag_name`（兼容前导 `v`），并从 `assets` 里**挑选与当前运行时匹配的产物**——当前进程是 net8.0 版就取 `*-net8.0.exe`，是 net10.0 版就取 `*-net10.0.exe`。避免 net8 用户被升级成 net10 产物后，因机器没装 .NET 10 运行时直接起不来。若 Release 只发了一个不带框架标记的 exe（早期版本），则回退取第一个。
 
 ## 方式二：手动替换
 
-从 [Releases](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases) 下载单文件，覆盖原目录即可。`settings.json` 与 `Log/` 不会被覆盖（请勿删除）。
+从 [Releases](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases) 下载单文件，覆盖原目录即可。**请下载与现有产物同框架的那个**（原来是 `-net8.0` 就继续用 `-net8.0`）：换了框架但机器没装对应大版本运行时，服务会起不来。`settings.json` 与 `Log/` 不会被覆盖（请勿删除）。
 
 ## 版本与发布
 
 - 程序集语义化版本（`Version`），可通过 `/api/version` 或 `upgrade --check` 查看当前版本。
-- 打 Git tag（如 `v1.0.0`）会触发 GitHub Actions 自动构建并发布单文件 exe。
+- 打 Git tag（如 `v1.0.0`）会触发 GitHub Actions 自动构建，并发布 **两个**单文件 exe：`NewLife.OllamaHub-net8.0.exe` 与 `NewLife.OllamaHub-net10.0.exe`。
 - 升级前建议备份 `settings.json`。

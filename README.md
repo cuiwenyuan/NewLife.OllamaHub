@@ -4,21 +4,41 @@
 
 做法：在本机起一个“伪装成本地 Ollama”的 HTTP 服务，Copilot 会把它当成本地 Ollama，模型列表自动出现在模型选择器里——**无需编写任何 IDE 插件**。配合 [NewLife.Agent](https://newlifex.com/core/agent) 装成 Windows 服务，开机自启、崩溃自愈，重启电脑后 Copilot 直接可用。
 
-> 本项目**仅引用 NewLife 生态的 NuGet 包**（`NewLife.Core` + `NewLife.Agent`），零第三方依赖，单文件即可运行。
+> 本项目**仅引用 NewLife 生态的 NuGet 包**（`NewLife.Core` + `NewLife.Agent`），零第三方依赖；单文件即可运行（需对应大版本的 .NET 运行时，见[环境要求](#环境要求)）。
 
 ## 特性
 
-- 🧩 **纯 NewLife 生态**：仅 `NewLife.Core` + `NewLife.Agent`，无 ASP.NET Core / 无运行时依赖。
+- 🧩 **纯 NewLife 生态**：仅 `NewLife.Core` + `NewLife.Agent`，无 ASP.NET Core / 无第三方运行时依赖（需对应大版本 .NET 运行时）。
 - 🚀 **服务化一等公民**：`NewLife.Agent` 装成 Windows 服务，开机自启、内存/句柄超限自动重启。
 - 🇨🇳 **国内供应商开箱预设**：12 家供应商配置模板（含 GLM 双通道 BigModel + Z.ai），复制即改即用的 `settings.*.json`；也可用 `presets` 子命令一键生成。
 - 🧠 **VS 优先 + Agent 友好**：`/api/show` 正确返回 `capabilities`（`tools`），Copilot 的 Agent 模式、读写文件、跑终端命令均可正常工作。
 - 📚 **文档齐全 / 安装方便 / 升级方便 / 示例完整**：见 `docs/` 与 `examples/`。
 
+## 环境要求
+
+**运行时（Windows x64）**：发布包为**非自包含单文件**，需先安装对应大版本的 .NET 运行时。按下载的 exe 文件名对号入座：
+
+| 发布产物 | 需要的运行时 | 适用场景 |
+| --- | --- | --- |
+| `NewLife.OllamaHub-net8.0.exe` | [.NET 8 运行时](https://dotnet.microsoft.com/download/dotnet/8.0) | 兼容面最广，老机器首选 |
+| `NewLife.OllamaHub-net10.0.exe` | [.NET 10 运行时](https://dotnet.microsoft.com/download/dotnet/10.0) | 新环境，跟当前 LTS 运行时对齐 |
+
+> 两个产物**功能完全一致**，仅编译目标框架不同。装哪个运行时就用哪个 exe；同时装了 8 和 10 时随便选。
+> 若双击后闪退或提示缺少框架，就是运行时版本没对上——换成另一个产物即可。
+
+其余要求：
+
+- **构建源码**：目标框架为 `net8.0;net10.0` 双目标。
+  - 构建全部两个目标：需 **.NET SDK 10**（CI 即如此）。
+  - 机器上只有 SDK 8 时：加 `-p:TargetFrameworks=net8.0` 只构建 net8.0。
+- **安装为 Windows 服务**：需管理员权限。
+- **上游大模型**：至少一家供应商的 API Key（也可聚合本机 Ollama）。
+
 ## 快速开始
 
 > 全程图形化 / 右键操作，无需记忆命令行参数。
 
-1. **下载并解压**：从 [GitHub Releases](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases) 下载单文件压缩包，在资源管理器中**右键解压**到任意目录（如 `C:\Tools\NewLife.OllamaHub\`）。
+1. **下载并放置**：从 [GitHub Releases](https://github.com/cuiwenyuan/NewLife.OllamaHub/releases) 下载与你机器运行时匹配的单文件 exe（`NewLife.OllamaHub-net8.0.exe` 或 `NewLife.OllamaHub-net10.0.exe`，见[环境要求](#环境要求)），放到任意目录（如 `C:\Tools\NewLife.OllamaHub\`）。可顺手改名为 `NewLife.OllamaHub.exe`，下文步骤统一按此名。
 2. **右键安装为服务**：进入解压目录，右键 `NewLife.OllamaHub.exe` → **以管理员身份运行**。弹出的菜单会自动识别状态，按 `2` 安装服务、按 `3` 启动服务即可（菜单项会随服务状态自动变化）。
    ![按 2 安装服务](docs/assets/install-menu-press-2.png)
    ![按 3 启动服务](docs/assets/install-menu-press-3.png)
@@ -31,7 +51,8 @@
 > 开发 / 调试源码时可用控制台模式前台运行（普通用户即可，无需管理员）：
 >
 > ```bash
-> dotnet run --project src/NewLife.OllamaHub --serve
+> # 双目标项目必须用 -f 指定框架（net8.0 或 net10.0）
+> dotnet run --project src/NewLife.OllamaHub -f net8.0 --serve
 > # 或发布后：
 > NewLife.OllamaHub.exe --serve
 > ```
@@ -66,7 +87,7 @@
 | M2 流式与工具 | NDJSON⇄SSE 桥 / tools 映射 / thinking 映射 | ✅ |
 | M3 服务化 | NewLife.Agent / 安装脚本 / Web 面板 / 单文件发布 | ✅ |
 | M4 配置与安全 | **配置热重载** / `setkey` 加密 / **12 家内置预设 `presets`** | ✅ |
-| M5 质量与发布 | **self-test 协议全覆盖（156 断言）** / **GitHub Actions 版本化发布** / docs+示例 | ✅ |
+| M5 质量与发布 | **self-test 协议全覆盖（306 断言）** / **GitHub Actions 版本化发布（net8.0 + net10.0 双产物）** / docs+示例 | ✅ |
 | M6 增强（可选） | **统一上游适配层（OpenAI/Anthropic/Gemini/透传 Ollama）** / **多模态图像透传** / **Anthropic·Gemini 原生上游 + 2 家预设（共 12 家，含 GLM 双通道）** | ✅ |
 
 ## 文档

@@ -16,7 +16,14 @@ A：不。只要上游是 OpenAI 兼容接口即可，OpenRouter 等海外供应
 A：不是。开发调试可用 `-run` 前台运行；生产建议装服务以实现开机自启。
 
 **Q：依赖很重吗？**
-A：不。仅 `NewLife.Core` + `NewLife.Agent` 两个 NuGet，无 ASP.NET Core、无 Node/Python 运行时，单文件 exe 即可运行。
+A：不。仅 `NewLife.Core` + `NewLife.Agent` 两个 NuGet，无 ASP.NET Core、无 Node/Python 运行时；单文件 exe 可直接运行，但需先安装**对应大版本的 .NET 运行时**（非自包含发布：`-net8.0` 产物需 .NET 8，`-net10.0` 产物需 .NET 10）。
+
+**Q：Release 里有两个 exe（`-net8.0` / `-net10.0`），该下哪个？**
+A：看机器装了哪个大版本的 .NET 运行时，**两个产物功能完全一致**，只是编译目标框架不同。
+- `NewLife.OllamaHub-net8.0.exe` → 需 [.NET 8 运行时](https://dotnet.microsoft.com/download/dotnet/8.0)，兼容面最广，不确定就选这个。
+- `NewLife.OllamaHub-net10.0.exe` → 需 [.NET 10 运行时](https://dotnet.microsoft.com/download/dotnet/10.0)，适合已跟到当前 LTS 的新环境。
+
+查本机已装运行时：命令行执行 `dotnet --list-runtimes`（看 `Microsoft.NETCore.App` 那几行）。双击后闪退/提示缺少框架，就是版本没对上，换另一个产物即可。
 
 **Q：Key 安全吗？**
 A：`setkey` 命令用本地 AES-256 加密落盘（机器绑定，密钥由固定应用盐 + 机器名派生，语义等同 DPAPI LocalMachine，且零 NuGet 依赖），也支持 `env:NAME` 环境变量注入。

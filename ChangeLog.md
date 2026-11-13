@@ -6,9 +6,23 @@
 
 ---
 
-## [Unreleased] - 模型预设全量刷新（2026-11，待发版）
+## [Unreleased] - .NET 10 双目标 + 模型预设全量刷新（2026-11，待发版）
 
-> 对应待打 tag；本版将 12 家供应商模型预设对齐到 2026-11 各家官方最新 Id 与端点（在 2026-09/10 一轮基础上增量刷新）。
+> 对应待打 tag；本版新增 **.NET 10 目标框架**（与 .NET 8 并列，发布两个单文件产物），并将 12 家供应商模型预设对齐到 2026-11 各家官方最新 Id 与端点。
+
+### 目标框架：新增 .NET 10（双目标）
+
+- `csproj` 由 `net8.0` 单目标改为 **`net8.0;net10.0` 双目标**；两个目标均为非自包含单文件发布，产物功能完全一致。
+- **按机器运行时选产物**：`NewLife.OllamaHub-net8.0.exe`（需 .NET 8 运行时）/ `NewLife.OllamaHub-net10.0.exe`（需 .NET 10 运行时）。装错版本会因缺运行时直接起不来。
+- CI 改为同时安装 8.0.x + 10.0.x 两套 SDK，两个框架各跑一遍 self-test，分别 `publish` 到独立目录，Release 上传两个不同文件名的 exe。
+- **修复 `upgrade` 跨框架误升级**：多产物 Release 下原逻辑盲取首个 `browser_download_url`，可能把 net8 用户升级成 net10 产物（机器无 .NET 10 运行时则起不来）。现改为按当前进程目标框架挑选匹配的 `*-net8.0.exe` / `*-net10.0.exe`，并新增 3 条 self-test 断言；匹配不到时回退首个并打印告警。
+- **消除 .NET 10 目标新增的 `SYSLIB0057`**：证书加载在 `#if NET9_0_OR_GREATER` 下改用 `X509CertificateLoader.LoadPkcs12FromFile`，net8.0 目标保持原 `X509Certificate2` 构造，两边均零新增警告。
+- `self-test` 由 303 增至 **306 项，两个框架均 306/0 全绿**。
+
+### 依赖升级（NewLife 生态）
+- `NewLife.Core` 11.18.2026.801 → **12.0.2026.1024**（跨大版本）。本项目只用 `HttpServer` / `JsonHelper` / `XTrace` / `NetUri` / `Setting` 等既有 API，12.0 下**编译 0 错误**；self-test 双框架 306/0 全绿；端到端冒烟（`/`、`/api/version`、`/api/tags`、`/v1/models`、`/admin`、未知模型 404 路径）全部正常。
+- `NewLife.Agent` 10.17.2026.801 → **10.18.2026.1024**（小版本递增，`ServiceBase` 菜单/命令注册机制无变化）。
+- 仍为零第三方依赖：两个包都只依赖 BCL 与彼此。
 
 ### 本轮（2026-11）增量
 - **DeepSeek**：新增旗舰 `deepseek-v4-pro`（V4-Pro-0813，1M / 384K，纯文本深度推理）；`deepseek-flash` 现指向 V4.1-Flash-1017（1M / 384K，原生视觉 + 可切换思考）。
@@ -28,6 +42,7 @@
 
 ### 文档与示例
 - `docs/providers.md` 12 家 + 2 家原生协议表格刷新到上述模型 Id / 端点；`examples/settings.*.json`（deepseek / siliconflow / gemini / anthropic / vision / newmodels）同步。
+- 运行时文档全面改写为双目标口径：`README.md` 新增产物选择对照表与构建说明（`dotnet run` 需 `-f`）；`docs/faq.md` 新增「两个 exe 该下哪个」；`docs/upgrade.md` 补产物同框架升级提醒；`docs/competitor-analysis.md` 框架对比行同步；推广物料（`marketing/`）文案不再写死单一版本。
 - **已知风险**：硅基流动模型 Id 的 owner 大小写在第三方源间有分歧（openaisuite 显示小写 `zhipuai/glm-5.3`，而官方模型名为大写 GLM-5.3）；本版采用与既有 `deepseek-ai/` / `Qwen/` 一致的大写惯例，若调用 404，请以你自己账号 `GET https://api.siliconflow.cn/v1/models` 返回的实际 Id 为准并反馈。
 
 ---

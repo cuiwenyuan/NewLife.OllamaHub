@@ -2,6 +2,8 @@
 
 基于 [NewLife.Agent](https://newlifex.com/core/agent)，把 NewLife.OllamaHub 装成 Windows 服务，实现开机自启、崩溃自愈、内存/句柄超限自动重启。
 
+> **前置条件**：先装好 .NET 运行时——`NewLife.OllamaHub-net8.0.exe` 对应 **.NET 8**，`NewLife.OllamaHub-net10.0.exe` 对应 **.NET 10**，装错版本服务会起不来（详见[排错](troubleshooting.md)）。下载后建议改名为 `NewLife.OllamaHub.exe`，下文统一按此名；安装/卸载服务必须管理员权限。
+
 ## 推荐：可视化安装方式（以管理员身份运行）
 
 > 最简单、最推荐的方式：直接右键 `NewLife.OllamaHub.exe`，选择「以管理员身份运行」，会弹出交互式菜单，按数字键即可完成安装、启动、停止、卸载等操作，无需记忆命令行参数。
