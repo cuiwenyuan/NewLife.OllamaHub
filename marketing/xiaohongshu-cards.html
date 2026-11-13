@@ -52,6 +52,43 @@
   .step .d{font-size:28px; color:var(--dim); margin-top:10px; line-height:1.5;}
   .cta{font-size:44px; line-height:1.5; margin-top:8px;}
   .mono{font-family:"Cascadia Code",Consolas,"Courier New",monospace; font-size:30px; color:var(--green); word-break:break-all;}
+
+  /* ---- 内容偏少的卡片：按类型放大间距与字号，避免画幅下方出现大面积空白 ---- */
+  .card.roomy .big{font-size:66px; margin-bottom:52px;}
+  .card.roomy .bullets li{padding:70px 0;}
+  .card.roomy .note{margin-top:80px; font-size:38px; line-height:1.85;}
+
+  /* 只有两条列表的卡片：做成两张对比卡片，避免拉大 padding 造成断裂感 */
+  .card.roomy2 .big{font-size:66px; margin-bottom:52px;}
+  .card.roomy2 .bullets li{
+    padding:60px 46px; margin-bottom:46px; font-size:40px; align-items:center;
+    background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:24px;
+  }
+  .card.roomy2 .bullets li .k{font-size:54px;}
+  .card.roomy2 .bullets li b{white-space:nowrap;}
+  .card.roomy2 .note{margin-top:96px; font-size:40px; line-height:1.9;}
+
+  .card.steps .step{padding:100px 0;}
+  .card.steps .step .n{flex:0 0 96px; height:96px; font-size:44px;}
+  .card.steps .step .t{font-size:44px;}
+  .card.steps .step .d{font-size:32px; margin-top:16px;}
+
+  .card.flowbig .flow{margin-top:44px;}
+  .card.flowbig .flow .node{padding:52px 40px; font-size:40px;}
+  .card.flowbig .flow .node small{font-size:29px; margin-top:16px;}
+  .card.flowbig .flow .arrow{padding:38px 0; font-size:56px;}
+
+  .card.gridbig .grid{gap:24px; margin-top:40px;}
+  .card.gridbig .grid .cell{padding:32px 30px; font-size:36px;}
+
+  /* 三条列表 + 底部页脚的卡片：单条幅度加大，避免主体与页脚之间空一大块 */
+  .card.roomy3 .bullets li{padding:92px 0; font-size:44px;}
+
+  /* 避免中文孤字/孤词换行（Chrome 117+ 支持，其余浏览器忽略） */
+  .card, .card *{text-wrap:pretty;}
+
+  /* 底部同时有标签与页脚地址时，把标签抬起来，别和地址挤在一起 */
+  .card:has(.foot) .tags{margin-bottom:88px;}
 </style>
 </head>
 <body>
@@ -67,7 +104,7 @@
 </div>
 
 <!-- 2 痛点 -->
-<div class="card">
+<div class="card roomy2">
   <div class="num">02 / 08</div>
   <div class="kicker">痛点</div>
   <p class="big">GitHub Copilot 的模型，<br>你好像只有两个选择</p>
@@ -79,7 +116,7 @@
 </div>
 
 <!-- 3 解法 -->
-<div class="card">
+<div class="card roomy3">
   <div class="num">03 / 08</div>
   <div class="kicker">解法</div>
   <h1>一个 exe，<br><span class="hg">伪装成本地 Ollama</span></h1>
@@ -92,7 +129,7 @@
 </div>
 
 <!-- 4 原理 -->
-<div class="card">
+<div class="card flowbig">
   <div class="num">04 / 08</div>
   <div class="kicker">原理</div>
   <p class="big">一次请求，是这样走的</p>
@@ -106,7 +143,7 @@
 </div>
 
 <!-- 5 12家 -->
-<div class="card">
+<div class="card gridbig">
   <div class="num">05 / 08</div>
   <div class="kicker">内置预设</div>
   <p class="big">12 家供应商<br>改一行 JSON 就换模型</p>
@@ -128,7 +165,7 @@
 </div>
 
 <!-- 6 三步 -->
-<div class="card">
+<div class="card steps">
   <div class="num">06 / 08</div>
   <div class="kicker">上手</div>
   <p class="big">三步就能跑起来</p>
@@ -147,7 +184,7 @@
 </div>
 
 <!-- 7 进阶 -->
-<div class="card">
+<div class="card roomy">
   <div class="num">07 / 08</div>
   <div class="kicker">进阶玩法</div>
   <p class="big">不只是本地自嗨</p>
@@ -166,7 +203,7 @@
   <h1>开源免费<br><span class="hg">欢迎 Star</span></h1>
   <p class="cta">GitHub 搜：</p>
   <p class="mono">cuiwenyuan/NewLife.OllamaHub</p>
-  <p class="note" style="margin-top:44px;">技术栈：.NET 8 / .NET 10 双目标 · NewLife 生态 · 单文件发布<br>非 .NET 开发者也能只用 exe，不用看源码。</p>
+  <p class="note" style="margin-top:44px;">技术栈：.NET 8 / .NET 10 双目标<br>NewLife 生态 · 单文件发布<br>非 .NET 开发者也能只用 exe，不用看源码。</p>
   <div class="tags"><span>你写代码常用哪个国产模型？评论区聊聊</span></div>
 </div>
 

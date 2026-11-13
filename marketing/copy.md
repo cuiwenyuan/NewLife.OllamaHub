@@ -57,18 +57,18 @@ GitHub：cuiwenyuan/NewLife.OllamaHub
 #程序员 #VSCode #GitHubCopilot #DeepSeek #国产大模型 #开源项目 #dotnet #AI工具 #效率工具 #编程日常
 ```
 
-### 配图（8 张，3:4，对应 xiaohongshu-cards.html）
+### 配图（8 张，1080×1440，已导出至 `marketing/images/xiaohongshu/`）
 
-| 序号 | 内容 | 作用 |
-|---|---|---|
-| 1 | 封面：把 DeepSeek 接进 GitHub Copilot（VS Code / Visual Studio） | 决定点击率，字最大 |
-| 2 | 痛点：官方贵 / 自己折腾劝退 | 制造共鸣 |
-| 3 | 解法：一个 exe 伪装成本地 Ollama | 给答案 |
-| 4 | 原理流程图：GitHub Copilot（VS Code / Visual Studio）→ Hub → 上游 | 建立可信度 |
-| 5 | 12 家供应商一览 | 展示覆盖面 |
-| 6 | 三步上手 | 降低门槛 |
-| 7 | 进阶：局域网 / 多协议 / 自检 / 服务化 | 展示深度 |
-| 8 | 结尾：GitHub 地址 + 互动提问 | 引导评论与 Star |
+| 序号 | 文件 | 内容 | 作用 |
+|---|---|---|---|
+| 1 | `01-封面.png` | 封面：把 DeepSeek 接进 GitHub Copilot（VS Code / Visual Studio） | 决定点击率，字最大 |
+| 2 | `02-痛点.png` | 痛点：官方贵 / 自己折腾劝退 | 制造共鸣 |
+| 3 | `03-解法.png` | 解法：一个 exe 伪装成本地 Ollama | 给答案 |
+| 4 | `04-原理.png` | 原理流程图：GitHub Copilot（VS Code / Visual Studio）→ Hub → 上游 | 建立可信度 |
+| 5 | `05-12家.png` | 12 家供应商一览 | 展示覆盖面 |
+| 6 | `06-三步.png` | 三步上手 | 降低门槛 |
+| 7 | `07-进阶.png` | 进阶：局域网 / 多协议 / 自检 / 服务化 | 展示深度 |
+| 8 | `08-结尾.png` | 结尾：GitHub 地址 + 互动提问 | 引导评论与 Star |
 
 ---
 
@@ -97,16 +97,16 @@ VS Code 与 Visual Studio 都在模型提供程序里选 Ollama 即可；VS 接�
 
 > 小绿书正文建议再砍短，图片承担主要信息，文字只做「补充一句」。
 
-### 配图（6 张，3:4，对应 wechat-xiaolvshu-cards.html）
+### 配图（6 张，1080×1440，已导出至 `marketing/images/wechat-xiaolvshu/`）
 
-| 序号 | 内容 |
-|---|---|
-| 1 | 封面：让 GitHub Copilot 用上国产大模型 |
-| 2 | 前提：GitHub Copilot 支持自带模型，卡在「Ollama 兼容」 |
-| 3 | 它做了什么：空壳 Ollama + 协议翻译 |
-| 4 | 12 家供应商 |
-| 5 | 三步上手 |
-| 6 | 亮点（局域网 / 自检 / 服务化）+ GitHub 地址 |
+| 序号 | 文件 | 内容 |
+|---|---|---|
+| 1 | `01-封面.png` | 封面：让 GitHub Copilot 用上国产大模型 |
+| 2 | `02-为什么.png` | 前提：GitHub Copilot 支持自带模型，卡在「Ollama 兼容」 |
+| 3 | `03-它做了什么.png` | 它做了什么：空壳 Ollama + 协议翻译 |
+| 4 | `04-12家.png` | 12 家供应商 |
+| 5 | `05-三步.png` | 三步上手 |
+| 6 | `06-结尾.png` | 亮点（局域网 / 自检 / 服务化）+ GitHub 地址 |
 
 ---
 
@@ -115,7 +115,7 @@ VS Code 与 Visual Studio 都在模型提供程序里选 Ollama 即可；VS 接�
 - **时间**：小红书晚 20:00–22:00；微信图片消息午 12:00–13:00 或晚 21:00 前后。
 - **封面**：只用第 1 张，别拼图；封面主标题不超过 12 字，否则手机上会被压缩得看不清。
 - **首评引导**：发布后自己先置顶一条评论，例如「需要配置模板的可以留言，我整理了一份 settings.json 示例」。
-- **配图导出**：直接打开对应 HTML，用浏览器整页截图或开发者工具逐块截取；尺寸 1080×1440（3:4）。
+- **配图导出**：已渲染成 PNG，直接取用——小红书 `marketing/images/xiaohongshu/01..08-*.png`、小绿书 `marketing/images/wechat-xiaolvshu/01..06-*.png`，统一 1080×1440（3:4），可直接上传。改了 HTML 文案后需重新导出（用 Chrome headless 对每张 `.card` 单独截图，1080×1440）。
 
 ## 四、合规提醒
 
