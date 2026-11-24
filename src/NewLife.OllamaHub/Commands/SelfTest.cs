@@ -571,17 +571,17 @@ namespace NewLife.OllamaHub.Commands
             var expected = new Dictionary<String, String[]>(StringComparer.OrdinalIgnoreCase)
             {
                 ["deepseek"]   = new[] { "deepseek-flash", "deepseek-v4-pro" },
-                ["qwen"]       = new[] { "qwen3.8-max", "qwen3.8-flash", "qwen3.8-27b" },
+                ["qwen"]       = new[] { "qwen4-max", "qwen3.8-max", "qwen3.8-flash", "qwen3.8-27b" },
                 ["kimi"]       = new[] { "kimi-k3.1-pro", "kimi-k3" },
                 ["glm"]        = new[] { "glm-5.3", "glm-5.3-flash", "glm-5.3-flashx" },
                 ["zhipu"]      = new[] { "zhipu-glm-5.3", "zhipu-glm-5.3-flash", "zhipu-glm-5.3-flashx" },
-                ["siliconflow"]= new[] { "deepseek-ai/DeepSeek-V4-Flash-0731", "zhipuai/GLM-5.3" },
-                ["volcengine"] = new[] { "doubao-seed-2-1-pro-260915", "doubao-seed-2-1-lite-260915", "doubao-seed-evolving" },
-                ["hunyuan"]    = new[] { "hy3", "hy4" },
+                ["siliconflow"]= new[] { "deepseek-ai/DeepSeek-V4-Flash-0731", "zhipuai/GLM-5.3", "moonshotai/Kimi-K3.1-Pro" },
+                ["volcengine"] = new[] { "doubao-seed-2-1-pro-260915", "doubao-seed-2-1-lite-260915", "doubao-seed-evolving", "kimi-k3-1-pro-261024" },
+                ["hunyuan"]    = new[] { "hy3", "hy4", "hy4-flash" },
                 ["modelscope"] = new[] { "Qwen/Qwen3.8-27B", "deepseek-ai/DeepSeek-V4.1-Flash-1017" },
-                ["openrouter"] = new[] { "openai/gpt-6-astra", "anthropic/claude-fable-5.2", "google/gemini-4-hydrogen" },
+                ["openrouter"] = new[] { "openai/gpt-6.2-astra", "openai/gpt-6.2-sol", "openai/gpt-6-astra", "anthropic/claude-fable-5.2", "google/gemini-4-neon", "google/gemini-4-hydrogen", "tencent/hy4-flash" },
                 ["anthropic"]  = new[] { "claude-fable-5-2", "claude-opus-5-5" },
-                ["gemini"]     = new[] { "gemini-4-hydrogen", "gemini-4-carbon" },
+                ["gemini"]     = new[] { "gemini-4-neon", "gemini-4-hydrogen", "gemini-4-carbon" },
             };
 
             // 预建 (providerId -> 模型 Id 集合)

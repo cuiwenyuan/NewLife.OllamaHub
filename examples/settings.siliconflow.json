@@ -18,6 +18,7 @@
     { "id": "zhipuai/GLM-5.3", "ownedBy": "siliconflow", "displayName": "SiliconFlow GLM-5.3", "family": "glm", "provider": "siliconflow", "contextLength": 1048576, "maxTokens": 262144, "tools": true },
     { "id": "zhipuai/GLM-5.3-Flash", "ownedBy": "siliconflow", "displayName": "SiliconFlow GLM-5.3-Flash", "family": "glm", "provider": "siliconflow", "contextLength": 1048576, "maxTokens": 262144, "tools": true, "vision": true },
     { "id": "Qwen/Qwen3.8-2.4T-A95B", "ownedBy": "siliconflow", "displayName": "SiliconFlow Qwen3.8 2.4T", "family": "qwen", "provider": "siliconflow", "contextLength": 1048576, "maxTokens": 131072, "tools": true, "vision": true },
-    { "id": "moonshotai/Kimi-K3", "ownedBy": "siliconflow", "displayName": "SiliconFlow Kimi-K3", "family": "kimi", "provider": "siliconflow", "contextLength": 1048576, "maxTokens": 262144, "tools": true, "vision": true, "thinking": true, "includeReasoningInRequest": false }
+    { "id": "moonshotai/Kimi-K3", "ownedBy": "siliconflow", "displayName": "SiliconFlow Kimi-K3", "family": "kimi", "provider": "siliconflow", "contextLength": 1048576, "maxTokens": 262144, "tools": true, "vision": true, "thinking": true, "includeReasoningInRequest": false },
+    { "id": "moonshotai/Kimi-K3.1-Pro", "ownedBy": "siliconflow", "displayName": "SiliconFlow Kimi-K3.1-Pro", "family": "kimi", "provider": "siliconflow", "contextLength": 1048576, "maxTokens": 131072, "tools": true, "vision": true, "thinking": true, "includeReasoningInRequest": false }
   ]
 }

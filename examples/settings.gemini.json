@@ -11,6 +11,7 @@
     }
   ],
   "models": [
+    { "id": "gemini-4-neon", "ownedBy": "gemini", "displayName": "Gemini 4 Neon", "family": "gemini", "provider": "gemini", "contextLength": 1048576, "maxTokens": 65536, "tools": true, "vision": true, "thinking": true },
     { "id": "gemini-4-hydrogen", "ownedBy": "gemini", "displayName": "Gemini 4 Hydrogen", "family": "gemini", "provider": "gemini", "contextLength": 1048576, "maxTokens": 65536, "tools": true, "vision": true, "thinking": true },
     { "id": "gemini-4-carbon", "ownedBy": "gemini", "displayName": "Gemini 4 Carbon", "family": "gemini", "provider": "gemini", "contextLength": 1048576, "maxTokens": 32768, "tools": true, "vision": true, "thinking": true },
     { "id": "gemini-4-argon", "ownedBy": "gemini", "displayName": "Gemini 4 Argon", "family": "gemini", "provider": "gemini", "contextLength": 1048576, "maxTokens": 32768, "tools": true, "vision": true, "thinking": true },

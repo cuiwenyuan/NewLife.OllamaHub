@@ -32,7 +32,7 @@
 ② 内置 12 家供应商，改一行 JSON 换模型
 ③ 支持 OpenAI / Anthropic / Gemini / Responses 多协议
 ④ 能开局域网共享，一台机器当团队模型网关
-⑤ 自带 self-test，306 项断言，升级不怕踩雷
+⑤ 自带 self-test，324 项断言，升级不怕踩雷
 
 三步上手：
 下载 exe → 填 API Key → 在 VS Code 或 Visual Studio 的模型提供程序里选 Ollama，开聊。
@@ -87,7 +87,7 @@ GitHub Copilot 在 VS Code 和 Visual Studio（VS）两端都支持自带模型�
 
 NewLife.OllamaHub 干的就是这件事：本机起一个「假 Ollama」，把请求转给 DeepSeek、GLM、Kimi、通义千问等 12 家国产/海外大模型，再把回答翻译回 Ollama 格式。
 
-单文件 exe，装 .NET 运行时后双击即用（.NET 8 / .NET 10 双版本）；改一行 JSON 换模型；还能开局域网给团队共用；自带 306 项 self-test。
+单文件 exe，装 .NET 运行时后双击即用（.NET 8 / .NET 10 双版本）；改一行 JSON 换模型；还能开局域网给团队共用；自带 324 项 self-test。
 
 VS Code 与 Visual Studio 都在模型提供程序里选 Ollama 即可；VS 接局域网时需要一张受信任的 HTTPS 证书。
 

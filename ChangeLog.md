@@ -11,7 +11,15 @@
 
 ## [Unreleased] - .NET 10 双目标 + 模型预设全量刷新（2026-11，待发版）
 
-> 对应待打 tag；本版新增 **.NET 10 目标框架**（与 .NET 8 并列，发布两个单文件产物），并将 12 家供应商模型预设对齐到 2026-11 各家官方最新 Id 与端点。
+> 对应待打 tag；本版新增 **.NET 10 目标框架**（与 .NET 8 并列，发布两个单文件产物），并将 12 家供应商模型预设对齐到 2026-11 各家官方最新 Id 与端点（**含 2026-11-24 第二次全量复核**）。
+
+### 模型预设：2026-11-24 全量复核（第二次刷新）
+
+- **新增可调用模型（9 个）**：`qwen4-max`（阿里 Qwen4 系列首款正式版，11-16）、`gemini-4-neon`（Google，11-18）、`hy4-flash`（腾讯混元，11-16）、`openai/gpt-6.2-astra` 与 `openai/gpt-6.2-sol`（OpenAI 11-17，经 OpenRouter）、`google/gemini-4-neon` 与 `tencent/hy4-flash`（OpenRouter 通道）、`moonshotai/Kimi-K3.1-Pro`（硅基流动开放权重 Day-0）、`kimi-k3-1-pro-261024`（火山方舟托管）。
+- **明确不写入**（避免调用即 404）：**GLM-5.4**（11-23 发布，官方明确「API 将在完成安全评估后开放」，截至 11-24 仅 Coding Plan 可用）、`qwen4-max-preview`（仅 Token Plan，11-25 24:00 下线）、`doubao-seedance-2-5-flash-261115`（视频生成，非 chat 端点）、Claude Opus 5.6 / Fable 5.5（仅泄露，无官方 model ID）、GLM-5.5 / Kimi K4 / Hy5（未发布）。
+- **生命周期标注**：Kimi K2 系列（`kimi-k2.7-code` / `kimi-k2.6`）2026-10-31 起对新账号关闭、2026-12 底整体下线，仅老账号可用；混元 `hy4-preview` 平台计划 2026-12-07 下线；Gemini `gemini-4-argon` 在 App 侧已被 Neon 取代（API 仍可用）。
+- **定价提醒（写进文档）**：Gemini 4 Carbon / Argon 首发价 $2/$10 仅到 2026-11-30，12-01 起涨至 $4/$20；Neon 与 Hydrogen 不涨价。Qwen4-Max 输出上限非思考 131,072 / 思考 262,144，预设取保守值。
+- `self-test` 防漂移断言同步扩充 9 条（新增模型各一条），总数 306 → **324，双框架 324/0 全绿**。
 
 ### 版本号规则改为日期式（对齐 NewLife 主干库）
 
@@ -28,7 +36,7 @@
 - CI 改为同时安装 8.0.x + 10.0.x 两套 SDK，两个框架各跑一遍 self-test，分别 `publish` 到独立目录，Release 上传两个不同文件名的 exe。
 - **修复 `upgrade` 跨框架误升级**：多产物 Release 下原逻辑盲取首个 `browser_download_url`，可能把 net8 用户升级成 net10 产物（机器无 .NET 10 运行时则起不来）。现改为按当前进程目标框架挑选匹配的 `*-net8.0.exe` / `*-net10.0.exe`，并新增 3 条 self-test 断言；匹配不到时回退首个并打印告警。
 - **消除 .NET 10 目标新增的 `SYSLIB0057`**：证书加载在 `#if NET9_0_OR_GREATER` 下改用 `X509CertificateLoader.LoadPkcs12FromFile`，net8.0 目标保持原 `X509Certificate2` 构造，两边均零新增警告。
-- `self-test` 由 303 增至 **306 项，两个框架均 306/0 全绿**。
+- `self-test` 由 303 增至 **306 项**（模型预设第二次复核后为 **324 项**），两个框架均全绿。
 
 ### 依赖升级（NewLife 生态）
 - `NewLife.Core` 11.18.2026.801 → **12.0.2026.1024**（跨大版本）。本项目只用 `HttpServer` / `JsonHelper` / `XTrace` / `NetUri` / `Setting` 等既有 API，12.0 下**编译 0 错误**；self-test 双框架 306/0 全绿；端到端冒烟（`/`、`/api/version`、`/api/tags`、`/v1/models`、`/admin`、未知模型 404 路径）全部正常。

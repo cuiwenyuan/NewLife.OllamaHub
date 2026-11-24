@@ -25,7 +25,7 @@
 ## 供应商预设与模型名
 - `ProviderPresets.cs` 内置 12 家（含 GLM 双通道 glm/zhipu）：9 OpenAI 兼容(deepseek/qwen/kimi/glm/zhipu/siliconflow/volcengine/hunyuan/modelscope/openrouter)+anthropic+gemini。
 - 模型 Id 漂移频繁，**新增/核对预设务必联网核实官方当前模型名，禁凭记忆填旧名**；无线上端点的预告模型（如 Qwen4）不写入，避免 404。
-- 2026-11-13 全量刷新后现行：deepseek=`deepseek-flash`(V4.1-1017,1M/384K,视觉)+`deepseek-v4-pro`(纯文本)；kimi=`kimi-k3.1-pro`/`-highspeed`/k3/k2.7-code/k2.6；glm/zhipu=`glm-5.3`+`glm-5.3-flash`+`glm-5.3-flashx`…；gemini=`gemini-4-hydrogen`(1M 统一输入输出)/`carbon`/`argon`+3.8-flash；hunyuan=`hy4`(1M/64K,视觉)/`hy3`；volcengine 豆包 2.1 `pro/lite-260915`(1024K/256K)+evolving；anthropic=`claude-fable-5-2`/opus-5-5/sonnet-5-5/haiku-5-5；openrouter 含 gpt-6-astra/gemini-4/tencent-hy4。
+- 2026-11-24 二次复核后现行（self-test 324/0）：deepseek=`deepseek-flash`+`deepseek-v4-pro`（无变化，11-13 开的是工具 API）；qwen=**`qwen4-max`(11-16 正式版,1M/131072,视觉+视频,思考)**+3.8/3.7 系列；kimi=`kimi-k3.1-pro`/`-highspeed`/k3/k2.7-code/k2.6（**K2 系列 12 月底整体下线**）；glm/zhipu=5.3 系（**GLM-5.4 已于 11-23 发布但 API 待安全评估未开放，勿提前写入**）；gemini=**`gemini-4-neon`(11-18,1M/65536)**+hydrogen/carbon/argon（**Carbon/Argon 12-1 起涨价 $4/$20**）；hunyuan=`hy4`+**`hy4-flash`(11-16,224B/12B)**+`hy3`；volcengine=豆包 2.1+evolving+**`kimi-k3-1-pro-261024`**（Seedance 2.5 是视频生成不写入）；anthropic=`claude-fable-5-2`（最新，**Opus 5.6/Fable 5.5 仅泄露勿写**）等 8 个；openrouter 含 **gpt-6.2-astra/sol(11-17)**+gpt-6-astra+gemini-4-neon/hydrogen/carbon+hy4/hy4-flash+fable-5.2 等 13 个；siliconflow 增 `moonshotai/Kimi-K3.1-Pro`（Day-0）。未写入：GLM-5.4、qwen4-max-preview（11-25 下线）、Opus 5.6/Fable 5.5、GLM-5.5/Kimi K4/Hy5。
 
 ## 可视化菜单（p/k/c）
 - `HubAgentService` 三嵌套子类继承 `BaseCommandHandler`(PresetMenuCommand=p/ApiKeyMenuCommand=k/WizardMenuCommand=c)，`ServiceBase.Command` 自动扫描注册——取代过时 `AddMenu`。

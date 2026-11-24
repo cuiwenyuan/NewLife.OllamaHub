@@ -31,9 +31,11 @@ public sealed class ProviderPreset
 /// <summary>
 /// 12 家国内/海外模型供应商的内置预设目录（含 GLM 双供应商 BigModel + Z.ai）。
 /// 决策来源：项目 2026-08-03 选定"首批 11 家全内置"，2026-08 增补 Z.ai 镜像 GLM 预设。列表与 <c>docs/providers.md</c> 保持一致。
-/// 2026-11-13 全量刷新：DeepSeek 增 V4-Pro；Kimi 增 K3.1 Pro；GLM 增 5.3-FlashX；Gemini 升 4 系（Hydrogen/Carbon/Argon）；
-/// 混元 Hy4 正式版；火山豆包 2.1 pro/lite 校正 1M/256K；Anthropic 增 Fable 5.2 / Sonnet 5.5 / Haiku 5.5。
-/// Qwen4 截至 2026-11-13 仅有预告、无线上端点，故暂不写入，避免 404。
+/// 2026-11-24 全量复核（11 天后再刷新）：新增 Qwen4-Max（阿里 11-16 正式版）、Gemini 4 Neon（Google 11-18）、
+/// 腾讯 Hy4 Flash（11-16）、OpenAI GPT-6.2 Astra / Sol（11-17，经 OpenRouter）、Kimi K3.1 Pro 的两个托管渠道
+/// （硅基流动开放权重 Day-0 / 火山方舟 261024）；DeepSeek、Anthropic、智谱、Kimi 官方旗舰均无新正式版。
+/// 未写入：GLM-5.4（11-23 发布但官方明确"API 待安全评估后开放"）、Claude Opus 5.6 / Fable 5.5（仅泄露）、
+/// GLM-5.5 / Kimi K4 / Hy5（未发布）、qwen4-max-preview（11-25 下线）、豆包 Seedance 2.5（视频生成非 chat）。
 /// </summary>
 public static class ProviderPresets
 {
@@ -74,8 +76,10 @@ public static class ProviderPresets
     {
         var list = new List<ProviderPreset>();
 
-        // 1) DeepSeek（2026-11 刷新：官方现行两个规范名 —— deepseek-flash（= V4.1-Flash-1017，原生多模态+可切换思考）
-        //    与 deepseek-v4-pro（V4-Pro-0813 旗舰，纯文本深度推理）。旧 chat/reasoner 已于 2026-07-24 停止。）
+        // 1) DeepSeek（2026-11 复核：官方现行两个规范名不变 —— deepseek-flash（= V4.1-Flash-1017，原生多模态+可切换思考）
+        //    与 deepseek-v4-pro（V4-Pro-0813 旗舰，纯文本深度推理）。11-13 官方新开放的是工具能力（web search / read_url /
+        //    文件输入 / OCR / ASR / TTS），模型名与端点未变，故模型列表无需调整。
+        //    旧 chat/reasoner 已于 2026-07-24 停止；deepseek-v4-flash / -vision-exp 仍被接受但已路由到 V4.1-Flash，不再写入预设。）
         list.Add(new ProviderPreset
         {
             Id = "deepseek",
@@ -91,8 +95,9 @@ public static class ProviderPresets
             },
         });
 
-        // 2) 阿里通义千问（2026-08 升级：qwen-plus/qwen-max 等旧名已迭代为 qwen3 系列。
-        //    Qwen4 系列 2026-11 仅放出预告与代码标识，尚无线上端点，故暂不写入。）
+        // 2) 阿里通义千问（2026-11-24 刷新：Qwen4 系列首款 Qwen4-Max **正式版已于 2026-11-16 上线**，
+        //    模型 ID qwen4-max，运行于百炼（DashScope）OpenAI 兼容模式；预览版 qwen4-max-preview 仅 Token Plan
+        //    且 2026-11-25 24:00 下线，故只写正式版。Qwen3.8 系列保留为上一代。）
         list.Add(new ProviderPreset
         {
             Id = "qwen",
@@ -100,6 +105,10 @@ public static class ProviderPresets
             BaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1",
             Models =
             {
+                // Qwen4-Max：总参 2.4T / 每 token 激活 71B，1M 上下文，文本+图像+视频输入，默认开启深度思考
+                // （reasoning_effort low/high/xhigh，默认 high，不传时按 high + thinking_budget 131072）。
+                // 输出上限：非思考 131072 / 思考 262144，此处取较保守的非思考档，避免客户端传超过上限导致 400。
+                M("qwen4-max", "通义千问 Qwen4 Max", "qwen", ctx: 1000000, max: 131072, vision: true, thinking: true),
                 M("qwen3.8-max", "通义千问 Qwen3.8 Max", "qwen", ctx: 1000000, max: 8192, vision: true),
                 M("qwen3.8-flash", "通义千问 Qwen3.8 Flash", "qwen", ctx: 1000000, max: 8192, vision: true),
                 M("qwen3.8-27b", "通义千问 Qwen3.8 27B", "qwen", ctx: 1000000, max: 8192, vision: true),
@@ -108,7 +117,9 @@ public static class ProviderPresets
             },
         });
 
-        // 3) Moonshot Kimi（2026-11 刷新：新增 K3.1 系列 kimi-k3.1-pro / -highspeed；K3 / K2.7-Code / K2.6 保留。K4 尚未发布。）
+        // 3) Moonshot Kimi（2026-11-24 复核：旗舰仍是 K3.1 系列 kimi-k3.1-pro / -highspeed（10-24 发布，11-05 开放权重），
+        //    K4 尚未发布。注意 K2 系列生命周期：2026-10-31 起对新账号关闭，官方计划 2026-12 底整体下线，
+        //    故 kimi-k2.7-code / kimi-k2.6 仅对老账号有效，新用户请直接用 K3.1 / K3。）
         list.Add(new ProviderPreset
         {
             Id = "kimi",
@@ -116,17 +127,22 @@ public static class ProviderPresets
             BaseUrl = "https://api.moonshot.cn/v1",
             Models =
             {
-                // K3.1 Pro：K3 的后训练强化版，2.8T/104B，1M 上下文，原生视觉，思考常开（reasoning_effort low/high/max）。
+                // K3.1 Pro：K3 的后训练强化版，2.8T/104B，1M 上下文，原生视觉，思考常开（reasoning_effort low/high/max，默认 max）。
                 M("kimi-k3.1-pro", "Kimi K3.1 Pro", "kimi", ctx: 1048576, max: 131072, vision: true, thinking: true),
                 // 高速版：能力一致，输出速度约 2~3 倍，价格 2 倍。
                 M("kimi-k3.1-pro-highspeed", "Kimi K3.1 Pro Highspeed", "kimi", ctx: 1048576, max: 131072, vision: true, thinking: true),
                 M("kimi-k3", "Kimi K3", "kimi", ctx: 1000000, max: 8192, vision: true, thinking: true),
+                // K2 系列：老账号可用，2026-12 底整体下线后本行应删除。
                 M("kimi-k2.7-code", "Kimi K2.7 Code", "kimi", ctx: 256000, max: 8192, vision: true, thinking: true),
                 M("kimi-k2.6", "Kimi K2.6", "kimi", ctx: 256000, max: 8192, vision: true, thinking: true),
             },
         });
 
-        // 4) 智谱 GLM（2026-11 刷新：新增 GLM-5.3-FlashX 极速版（约 200 tok/s）。GLM-5.4/5.5 仍为路线图，未发布。）
+        // 4) 智谱 GLM（2026-11-24 复核：GLM-5.4 已于 2026-11-23 晚发布 —— 首个 Loop Transformer 架构旗舰，
+        //    750B 基座达 2~3T 级水平，原生视觉 + "泛 Coding"（Code to Video/3D/Image），默认 200 tok/s（高峰 70~80）。
+        //    **但官方明确"API 将在完成安全评估后开放"**，截至 2026-11-24 仅 GLM Coding Plan 与 ZCode/Trae/WorkBuddy/Qoder
+        //    可用，开放平台无此模型 → 按"无线上端点不写入"原则暂不加入，待 API 开放后补 glm-5.4 / zhipu-glm-5.4。
+        //    下一代 GLM-5.5（约 3T）预计 2026-12。）
         // BigModel 通道（open.bigmodel.cn）—— 默认 GLM 供应商，沿用历史 baseUrl 不破坏老配置。
         list.Add(new ProviderPreset
         {
@@ -150,6 +166,7 @@ public static class ProviderPresets
         //   - 模型 Id 用 zhipu-glm-5.3 等，避免与 glm 供应商的 glm-5.3 在 /api/tags 撞车；
         //   - upstreamModel 仍填真正上游名 glm-5.3，发给 Z.ai 的请求体 model 字段正确。
         // 用户可按需二选一，或两家都启用、在客户端各自选择。
+        // 待办：GLM-5.4 的 API 开放后，两个通道需同时补 glm-5.4 与 zhipu-glm-5.4（保留命名空间化约定）。
         list.Add(new ProviderPreset
         {
             Id = "zhipu",
@@ -167,8 +184,10 @@ public static class ProviderPresets
             },
         });
 
-        // 5) 硅基流动（2026-11 复核：DeepSeek V4 系列、GLM-5.3 / 5.3-Flash、Qwen3.8、Kimi-K3 均仍在线，本轮无需改动；
-        //    K3.1 尚未上架，故不写。注意：模型 Id 的 owner 大小写在第三方源间有分歧，下列采用大写惯例；
+        // 5) 硅基流动（2026-11-24 复核：新增 moonshotai/Kimi-K3.1-Pro —— 2026-11-05 起平台提供开放权重 Day-0 访问。
+        //    DeepSeek V4 系列、GLM-5.3 / 5.3-Flash、Qwen3.8 均仍在线；平台 2026-11-16 下线的 Qwen3-Coder-30B / GLM-4.5V
+        //    等旧模型本表未收录。DeepSeek-V4.1-Flash 已于 10-21 静默升级到 1017 检查点（模型 ID 不变）。
+        //    注意：模型 Id 的 owner 大小写在第三方源间有分歧，下列采用大写惯例；
         //    若调用 404，请以你自己账号 GET https://api.siliconflow.cn/v1/models 返回的实际 Id 为准。）
         list.Add(new ProviderPreset
         {
@@ -184,12 +203,17 @@ public static class ProviderPresets
                 M("zhipuai/GLM-5.3", "SiliconFlow GLM-5.3", "siliconflow", ctx: 1048576, max: 262144),
                 M("zhipuai/GLM-5.3-Flash", "SiliconFlow GLM-5.3-Flash", "siliconflow", ctx: 1048576, max: 262144, vision: true),
                 M("Qwen/Qwen3.8-2.4T-A95B", "SiliconFlow Qwen3.8 2.4T", "siliconflow", ctx: 1048576, max: 131072, vision: true),
+                // K3.1 Pro 开放权重：2.8T/104B，1M 上下文，原生视觉，思考常开。
+                M("moonshotai/Kimi-K3.1-Pro", "SiliconFlow Kimi-K3.1-Pro", "siliconflow", ctx: 1048576, max: 131072, vision: true, thinking: true),
                 M("moonshotai/Kimi-K3", "SiliconFlow Kimi-K3", "siliconflow", ctx: 1048576, max: 262144, vision: true, thinking: true),
             },
         });
 
-        // 6) 火山方舟（2026-11 校正：doubao-seed-2-1-pro/lite-260915 实为 1024K 上下文 / 256K 输出（此前后值偏小）；
-        //    新增 doubao-seed-2-1-lite-260915；doubao-seed-evolving 同步为 1024K / 256K。）
+        // 6) 火山方舟（2026-11-24 复核 —— 依据官方「模型发布公告」）：
+        //    - 202611：doubao-seed-evolving 滚动升级（11-05，强化多步任务规划/结果验收、工具调用与事实一致性）；
+        //      新发 doubao-seedance-2-5-flash-261115，属**视频生成**模型，不走 chat 端点，故不写入。
+        //    - 202610：上架月之暗面 kimi-k3-1-pro-261024（Kimi K3.1 Pro 托管版，深度思考），本表已收录。
+        //    - 豆包对话线仍是 2.1 pro/lite（1024K / 256K）。
         list.Add(new ProviderPreset
         {
             Id = "volcengine",
@@ -204,11 +228,15 @@ public static class ProviderPresets
                 M("doubao-seed-2-0-code-preview-260215", "Doubao Seed 2.0 Code", "volcengine", ctx: 256000, max: 32768, vision: true),
                 // 统一 ID 思考模型：平台自动升级底层版本，1M 上下文 / 256K 输出。
                 M("doubao-seed-evolving", "Doubao Seed Evolving", "volcengine", ctx: 1024000, max: 262144, vision: true, thinking: true),
+                // 第三方托管：Kimi K3.1 Pro（2026-10-24 上架方舟，深度思考 + 函数调用 + 上下文缓存）。
+                M("kimi-k3-1-pro-261024", "Kimi K3.1 Pro (火山方舟)", "volcengine", ctx: 1048576, max: 131072, vision: true, thinking: true),
             },
         });
 
-        // 7) 腾讯混元（2026-11 刷新：Hy4 正式版已于 2026-11-04 在 TokenHub 上线，模型 Id 改为 hy4（1M 上下文 / 64K 输出，首次支持图像理解与电脑操作）；
-        //    旧 hy4-preview 已被正式版取代。HY3 保持不变。）
+        // 7) 腾讯混元（2026-11-24 复核：**新增 hy4-flash** —— 2026-11-16 发布，224B 总参（含 64B Engram）/ 12B 激活，
+        //    1M 上下文，文本+图像输入，主打文档/检索/幻灯片/简单前端等高频日常；11-18 开放权重（tencent/Hy4-flash）。
+        //    hy4 正式版（11-04，770B）仍是旗舰，长程软件工程用它。平台计划 2026-12-07 下线 hy4-preview（本表未收录）。
+        //    下一代 Hy5 官方口径为"今年底明年初"，尚未发布。）
         list.Add(new ProviderPreset
         {
             Id = "hunyuan",
@@ -218,13 +246,16 @@ public static class ProviderPresets
             {
                 // Hy4 正式版：1,048,576 上下文 / 65,536 输出，文本+图像输入，推理等级 no_think / high。
                 M("hy4", "Hunyuan Hy4", "hunyuan", ctx: 1048576, max: 65536, vision: true, thinking: true),
+                // Hy4 Flash：轻量日常版，官方未单列输出上限，按 Hy 系列 64K 取值（若上游报 400 请下调 maxTokens）。
+                M("hy4-flash", "Hunyuan Hy4 Flash", "hunyuan", ctx: 1048576, max: 65536, vision: true),
                 // HY3 正式版：256K 上下文 / 64K 输出，推理型（快慢思考切换），原生工具调用，文本输入。
                 M("hy3", "Hunyuan Hy3", "hunyuan", ctx: 256000, max: 64000, thinking: true),
             },
         });
 
-        // 8) ModelScope（2026-11 刷新：DeepSeek 升到 V4.1-Flash-1017 最新检查点；Qwen3.8、GLM-5.3 保持。
-        //    Kimi-K3.1-Pro 在魔搭推理 API 需 :DashScope 后缀，为免 404 暂不写入。）
+        // 8) ModelScope（2026-11-24 复核：Qwen3.8、GLM-5.3、DeepSeek V4 / V4.1 仍在推理 API 在线。
+        //    Kimi-K3.1-Pro 在魔搭目前只有**模型页（权重下载）**，推理 API 需 :DashScope 后缀才可调，
+        //    为免 404 暂不写入；Qwen4-Max 走阿里云百炼（见 qwen 预设），魔搭推理 API 未见独立端点。）
         list.Add(new ProviderPreset
         {
             Id = "modelscope",
@@ -240,8 +271,11 @@ public static class ProviderPresets
             },
         });
 
-        // 9) OpenRouter（聚合器，2026-11 刷新：新增 Claude Fable 5.2 / Opus 5.5、Gemini 4 Hydrogen / Carbon、腾讯 Hy4；
-        //    保留 gpt-6-astra / gpt-5.6 / gemini-3.8-flash。gpt-6.2-astra 仅灰度未入官方目录，暂不写入。）
+        // 9) OpenRouter（聚合器，2026-11-24 刷新，四家新增）：
+        //    - OpenAI GPT-6.2 Astra / Sol（11-17 发布，均 1,050,000 上下文 / 128,000 输出；Astra 旗舰、Sol 日常）
+        //    - Google Gemini 4 Neon（11-18，取代 app 侧 Argon）
+        //    - 腾讯 Hy4 Flash（11-16）
+        //    旧代 gpt-6-astra / gpt-5.6 / claude-opus-5 / gemini-3.8-flash 仍在线，保留供对比与回退。
         list.Add(new ProviderPreset
         {
             Id = "openrouter",
@@ -249,19 +283,26 @@ public static class ProviderPresets
             BaseUrl = "https://openrouter.ai/api/v1",
             Models =
             {
+                // GPT-6.2 系列：Astra $8/$40（比 GPT-6 Astra 降 20%），Sol $2/$10。
+                M("openai/gpt-6.2-astra", "GPT-6.2 Astra", "openrouter", ctx: 1050000, max: 128000, vision: true),
+                M("openai/gpt-6.2-sol", "GPT-6.2 Sol", "openrouter", ctx: 1050000, max: 128000),
                 M("openai/gpt-6-astra", "GPT-6 Astra", "openrouter", ctx: 1050000, max: 16384, vision: true),
                 M("openai/gpt-5.6", "GPT-5.6", "openrouter", ctx: 256000, max: 16384),
                 M("anthropic/claude-fable-5.2", "Claude Fable 5.2", "openrouter", ctx: 1000000, max: 128000, vision: true),
                 M("anthropic/claude-opus-5.5", "Claude Opus 5.5", "openrouter", ctx: 1000000, max: 128000, vision: true),
                 M("anthropic/claude-opus-5", "Claude Opus 5", "openrouter", ctx: 1000000, max: 16384),
+                M("google/gemini-4-neon", "Gemini 4 Neon", "openrouter", ctx: 1048576, max: 65536, vision: true, thinking: true),
                 M("google/gemini-4-hydrogen", "Gemini 4 Hydrogen", "openrouter", ctx: 1048576, max: 65536, vision: true),
                 M("google/gemini-4-carbon", "Gemini 4 Carbon", "openrouter", ctx: 1048576, max: 32768, vision: true),
                 M("google/gemini-3.8-flash", "Gemini 3.8 Flash", "openrouter", ctx: 1000000, max: 8192, vision: true),
                 M("tencent/hy4", "Hunyuan Hy4", "openrouter", ctx: 1048576, max: 65536, vision: true),
+                M("tencent/hy4-flash", "Hunyuan Hy4 Flash", "openrouter", ctx: 1048576, max: 65536, vision: true),
             },
         });
 
-        // 10) Anthropic Claude（ApiMode=anthropic；2026-11 刷新：新增 Fable 5.2 / Sonnet 5.5 / Haiku 5.5，保留 Opus 5.5 / Opus 5 / Sonnet 5 / Fable 5.1 / Haiku 4.5）
+        // 10) Anthropic Claude（ApiMode=anthropic；2026-11-24 复核：最新正式版仍是 **Fable 5.2（11-09，$8/$40）**，
+        //     Opus 5.5 / Sonnet 5.5 / Haiku 5.5 分别于 9-22 / 9-28 / 10-7 发布。传闻中的 Opus 5.6 与 Fable 5.5
+        //     截至 11-24 均无官方 model ID、无模型卡，属泄露阶段 → 不写入。）
         list.Add(new ProviderPreset
         {
             Id = "anthropic",
@@ -281,8 +322,12 @@ public static class ProviderPresets
             },
         });
 
-        // 11) Google Gemini（ApiMode=gemini；2026-11 刷新：Gemini 4 家族 —— Hydrogen（11-12，取代 3.8 Flash）/ Carbon（11-10 GA）/ Argon；
-        //     Gemini 4 采用 1,048,576 统一输入+输出上限，单次同步默认输出 65,536（Carbon/Argon 非流式直连为 32,768）。
+        // 11) Google Gemini（ApiMode=gemini；2026-11-24 刷新：**新增 gemini-4-neon（11-18 GA）** ——
+        //     Neon 定位"高频复杂编码与科研"主力，1,048,576 统一上下文，thinking_level 四档 low/medium/high(默认)/xhigh，
+        //     非流式与流式单跳输出上限均为 65,536，$3/$15（无免费额度、无首发优惠）。
+        //     定价变化：Carbon / Argon 首发价 $2/$10 只到 2026-11-30，12-01 起统一 $4/$20（Neon 与 Hydrogen 不涨价）。
+        //     Argon 在 Gemini App 侧已被 Neon 取代（API 仍可用），故保留但排后。
+        //     Hydrogen（11-12）仍是日常低成本的默认执行模型，$1.50/$7.50，有免费额度。
         list.Add(new ProviderPreset
         {
             Id = "gemini",
@@ -291,6 +336,7 @@ public static class ProviderPresets
             ApiMode = "gemini",
             Models =
             {
+                M("gemini-4-neon", "Gemini 4 Neon", "gemini", ctx: 1048576, max: 65536, vision: true, thinking: true),
                 M("gemini-4-hydrogen", "Gemini 4 Hydrogen", "gemini", ctx: 1048576, max: 65536, vision: true, thinking: true),
                 M("gemini-4-carbon", "Gemini 4 Carbon", "gemini", ctx: 1048576, max: 32768, vision: true, thinking: true),
                 M("gemini-4-argon", "Gemini 4 Argon", "gemini", ctx: 1048576, max: 32768, vision: true, thinking: true),

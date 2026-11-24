@@ -39,13 +39,13 @@
 
 ### 4. 勾选要使用的模型
 
-OllamaHub 会把 `settings.json` 里配置的模型以 Ollama 格式暴露出来。勾选你需要的模型（如 `deepseek-v4-flash`、`deepseek-v4-pro`），然后点击 **Save**。
+OllamaHub 会把 `settings.json` 里配置的模型以 Ollama 格式暴露出来。勾选你需要的模型（如 `deepseek-flash`、`deepseek-v4-pro`、`qwen4-max`），然后点击 **Save**。
 
 ![勾选模型](assets/vs-copilot-select-models.png)
 
 ### 5. 切换模型开始使用
 
-保存后，再次点击模型下拉框，会在 **Other models** 下看到刚才添加的 Ollama 模型。选中 `deepseek-v4-flash` 等模型后，发送消息即可看到模型实际应答。
+保存后，再次点击模型下拉框，会在 **Other models** 下看到刚才添加的 Ollama 模型。选中 `deepseek-flash` 等模型后，发送消息即可看到模型实际应答。
 
 ![使用 deepseek-v4-flash 提问](assets/vs-copilot-deepseek-v4-flash-in-use.png)
 
@@ -96,7 +96,7 @@ VS Code 1.127 起**内置 Ollama 提供程序已弃用**（[microsoft/vscode#299
        "name": "OllamaHub",
        "vendor": "openai",
        "models": [
-         { "id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash", "url": "http://localhost:11434/v1/chat/completions", "toolCalling": true, "vision": false, "maxInputTokens": 128000, "maxOutputTokens": 8192 },
+         { "id": "deepseek-flash", "name": "DeepSeek Flash (V4.1-1017)", "url": "http://localhost:11434/v1/chat/completions", "toolCalling": true, "vision": true, "maxInputTokens": 1000000, "maxOutputTokens": 384000 },
          { "id": "deepseek-v4-pro",   "name": "DeepSeek V4 Pro",   "url": "http://localhost:11434/v1/chat/completions", "toolCalling": true, "vision": false, "maxInputTokens": 128000, "maxOutputTokens": 8192 }
        ]
      }
